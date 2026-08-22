@@ -36,6 +36,7 @@ describe("matchFieldsPhase2", () => {
         id: "default",
         ollamaUrl: "http://localhost:11434",
         model: "test",
+        embeddingModel: "",
         temperature: 0.2,
         timeoutMs: 1000
       },
@@ -60,6 +61,7 @@ describe("matchFieldsPhase2", () => {
         id: "default",
         ollamaUrl: "http://localhost:11434",
         model: "test",
+        embeddingModel: "",
         temperature: 0.2,
         timeoutMs: 1000
       },
@@ -84,6 +86,7 @@ describe("matchFieldsPhase2", () => {
         id: "default",
         ollamaUrl: "http://localhost:11434",
         model: "test",
+        embeddingModel: "",
         temperature: 0.2,
         timeoutMs: 1000
       },

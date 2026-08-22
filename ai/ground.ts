@@ -9,6 +9,7 @@ const HALLUCINATION_MARKERS = [
   "kubernetes",
   "terraform",
   "10 years",
+  "15 years",
   "ten years",
   "decade of"
 ];

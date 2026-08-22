@@ -22,6 +22,7 @@ export interface AiSettings {
   id: string;
   ollamaUrl: string;
   model: string;
+  embeddingModel: string;
   temperature: number;
   timeoutMs: number;
 }
@@ -41,10 +42,17 @@ export interface AIFieldMatch {
 export type AnswerTone = "professional" | "conversational" | "concise";
 export type AnswerLength = "short" | "medium" | "detailed";
 
+export interface AnswerCitation {
+  knowledgeId: string;
+  title: string;
+}
+
 export interface GeneratedAnswer {
   answer: string;
   confidence: number;
   sources: string[];
+  sourceIds?: string[];
+  citations?: AnswerCitation[];
   needsUserInput: boolean;
   missingInformation?: string[];
 }
@@ -61,4 +69,4 @@ export interface JobAnalysis {
 export const DEFAULT_OLLAMA_URL = "http://localhost:11434";
 export const DEFAULT_TEMPERATURE = 0.2;
 export const DEFAULT_AI_TIMEOUT_MS = 60_000;
-export const PROMPT_VERSION = "2.0.0";
+export const PROMPT_VERSION = "3.0.0";

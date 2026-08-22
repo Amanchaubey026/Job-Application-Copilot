@@ -13,6 +13,7 @@ export function defaultAiSettings(): AiSettings {
     id: DEFAULT_SETTINGS_ID,
     ollamaUrl: DEFAULT_OLLAMA_URL,
     model: "",
+    embeddingModel: "",
     temperature: DEFAULT_TEMPERATURE,
     timeoutMs: DEFAULT_AI_TIMEOUT_MS
   };

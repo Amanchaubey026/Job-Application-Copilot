@@ -87,16 +87,18 @@ select:focus-visible {
   padding: 8px 16px 0;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+  overflow-x: auto;
 }
 
 .tab {
   border: 0;
   background: transparent;
   color: var(--muted);
-  padding: 8px 10px 10px;
+  padding: 8px 8px 10px;
   border-bottom: 2px solid transparent;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .tab[aria-selected="true"] {

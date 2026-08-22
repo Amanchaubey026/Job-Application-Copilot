@@ -20,7 +20,8 @@ export function createEmptyProfile(
     metadata: {
       createdAt: overrides.metadata?.createdAt ?? now,
       updatedAt: overrides.metadata?.updatedAt ?? now,
-      sourceFileName: overrides.metadata?.sourceFileName
+      sourceFileName: overrides.metadata?.sourceFileName,
+      version: overrides.metadata?.version ?? 1
     }
   };
 }
@@ -30,7 +31,8 @@ export function touchProfile(profile: UserProfile): UserProfile {
     ...profile,
     metadata: {
       ...profile.metadata,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      version: (profile.metadata.version ?? 1) + 1
     }
   };
 }

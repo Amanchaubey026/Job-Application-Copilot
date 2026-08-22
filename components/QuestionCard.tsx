@@ -8,10 +8,13 @@ type Props = {
   error?: string | null;
   answer: GeneratedAnswer | null;
   draft: string;
+  evidence?: string[];
+  previous?: Array<{ question: string; answer: string; source: string }>;
   onDraftChange: (value: string) => void;
   onGenerate: (tone: AnswerTone, length: AnswerLength) => void;
   onUse: (replace: boolean) => void;
   onCancel: () => void;
+  onUsePrevious?: (text: string) => void;
 };
 
 export function QuestionCard({
@@ -20,10 +23,13 @@ export function QuestionCard({
   error,
   answer,
   draft,
+  evidence,
+  previous,
   onDraftChange,
   onGenerate,
   onUse,
-  onCancel
+  onCancel,
+  onUsePrevious
 }: Props) {
   const [tone, setTone] = useState<AnswerTone>("professional");
   const [length, setLength] = useState<AnswerLength>("medium");
@@ -36,6 +42,36 @@ export function QuestionCard({
       <h3>{question.question}</h3>
       {question.maxLength ? (
         <div className="tiny">Maximum characters: {question.maxLength}</div>
+      ) : null}
+      {evidence?.length ? (
+        <div style={{ marginTop: 8 }}>
+          <div className="tiny">Relevant experience found</div>
+          <ul className="found-list">
+            {evidence.map((title) => (
+              <li key={title}>• {title}</li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="tiny">No strong evidence found yet. Generate only if you want a draft anyway.</p>
+      )}
+      {previous?.length ? (
+        <div className="banner" style={{ marginTop: 8 }}>
+          Previous answer found
+          {previous.map((item) => (
+            <div key={item.question} style={{ marginTop: 6 }}>
+              <div className="tiny">{item.question}</div>
+              <p className="muted">{item.answer.slice(0, 180)}</p>
+              <button
+                className="btn btn-ghost"
+                type="button"
+                onClick={() => onUsePrevious?.(item.answer)}
+              >
+                View Previous Answer
+              </button>
+            </div>
+          ))}
+        </div>
       ) : null}
 
       {!answer ? (
@@ -72,8 +108,15 @@ export function QuestionCard({
           <div className="tiny">
             {draft.length}/{max} · confidence {Math.round(answer.confidence * 100)}%
           </div>
-          {answer.sources.length ? (
-            <p className="muted">Sources: {answer.sources.join(", ")}</p>
+          {answer.citations?.length || answer.sources.length ? (
+            <div>
+              <div className="section-title">Sources used</div>
+              <ul className="found-list">
+                {(answer.citations?.map((item) => item.title) ?? answer.sources).map((title) => (
+                  <li key={title}>• {title}</li>
+                ))}
+              </ul>
+            </div>
           ) : null}
           <div className="row" style={{ marginTop: 8 }}>
             <div className="field">

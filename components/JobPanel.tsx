@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { GeneratedAnswer, JobAnalysis } from "~types/ai";
+import type { JobMatch } from "~types/application";
 import type { ApplicationQuestion, JobContext } from "~types/job";
 import { QuestionCard } from "./QuestionCard";
 import type { AnswerLength, AnswerTone } from "~types/ai";
@@ -8,19 +9,25 @@ type QuestionState = {
   answer: GeneratedAnswer | null;
   draft: string;
   error: string | null;
+  evidence?: string[];
+  previous?: Array<{ question: string; answer: string; source: string }>;
 };
 
 type Props = {
   job: JobContext | null;
   questions: ApplicationQuestion[];
   analysis: JobAnalysis | null;
+  match: JobMatch | null;
   analyzing: boolean;
   generatingId: string | null;
   ollamaReady: boolean;
+  saved: boolean;
   questionState: Record<string, QuestionState>;
   detailsOpen: boolean;
   onToggleDetails: () => void;
   onAnalyze: () => void;
+  onSaveJob: () => void;
+  onMarkApplied: () => void;
   onGenerate: (question: ApplicationQuestion, tone: AnswerTone, length: AnswerLength) => void;
   onDraftChange: (id: string, value: string) => void;
   onUse: (question: ApplicationQuestion, replace: boolean) => void;
@@ -31,13 +38,17 @@ export function JobPanel({
   job,
   questions,
   analysis,
+  match,
   analyzing,
   generatingId,
   ollamaReady,
+  saved,
   questionState,
   detailsOpen,
   onToggleDetails,
   onAnalyze,
+  onSaveJob,
+  onMarkApplied,
   onGenerate,
   onDraftChange,
   onUse,
@@ -66,6 +77,9 @@ export function JobPanel({
       </div>
 
       <div className="btn-row">
+        <button className="btn btn-secondary" type="button" disabled={!job || saved} onClick={onSaveJob}>
+          {saved ? "Job saved" : "Save Job"}
+        </button>
         <button
           className="btn btn-primary"
           type="button"
@@ -73,6 +87,9 @@ export function JobPanel({
           onClick={onAnalyze}
         >
           {analyzing ? "Analyzing job…" : "Analyze Job"}
+        </button>
+        <button className="btn btn-secondary" type="button" disabled={!saved} onClick={onMarkApplied}>
+          Mark as Applied
         </button>
       </div>
       {!ollamaReady ? (
@@ -123,19 +140,36 @@ export function JobPanel({
               </ul>
             </>
           ) : null}
-          {showMissing && analysis.missingSkills.length ? (
+          {match?.evidence.length ? (
             <>
               <h3 className="section-title" style={{ marginTop: 12 }}>
-                Missing / unclear
+                Relevant evidence
               </h3>
               <ul className="found-list">
-                {analysis.missingSkills.map((skill) => (
-                  <li key={skill}>
-                    <span className="miss">?</span>
-                    {skill}
-                  </li>
+                {match.evidence.map((item) => (
+                  <li key={item.item.id}>• {item.item.title}</li>
                 ))}
               </ul>
+            </>
+          ) : null}
+          {showMissing && (match?.unmatchedRequirements.length || analysis.missingSkills.length) ? (
+            <>
+              <h3 className="section-title" style={{ marginTop: 12 }}>
+                Not found in your profile
+              </h3>
+              <ul className="found-list">
+                {(match?.unmatchedRequirements.map((item) => item.name) ?? analysis.missingSkills).map(
+                  (skill) => (
+                    <li key={skill}>
+                      <span className="miss">?</span>
+                      {skill}
+                    </li>
+                  )
+                )}
+              </ul>
+              <p className="tiny">
+                This means the skill is not mentioned in your saved career knowledge, not that you lack it.
+              </p>
             </>
           ) : null}
           <button className="btn btn-ghost" type="button" onClick={onToggleDetails}>
@@ -161,7 +195,10 @@ export function JobPanel({
               error={questionState[question.id]?.error}
               answer={questionState[question.id]?.answer ?? null}
               draft={questionState[question.id]?.draft ?? ""}
+              evidence={questionState[question.id]?.evidence}
+              previous={questionState[question.id]?.previous}
               onDraftChange={(value) => onDraftChange(question.id, value)}
+              onUsePrevious={(text) => onDraftChange(question.id, text)}
               onGenerate={(tone, length) => onGenerate(question, tone, length)}
               onUse={(replace) => onUse(question, replace)}
               onCancel={() => onCancelQuestion(question.id)}

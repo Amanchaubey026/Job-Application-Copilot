@@ -6,17 +6,37 @@ import type {
   GeneratedAnswer,
   JobAnalysis
 } from "~types/ai";
+import type { JobMatch, JobRequirement } from "~types/application";
 import type { ApplicationQuestion, JobContext } from "~types/job";
 import type { SerializableFormField } from "~types/form";
 import type { FieldMatch } from "~types/matching";
+import type { RetrievalResult } from "~types/knowledge";
 import type { UserProfile } from "~types/profile";
 import { AppError } from "~types/errors";
 import { buildFieldClassificationPrompt } from "~prompts/field-classification";
 import { buildJobAnalysisPrompt } from "~prompts/job-analysis";
 import { buildAnswerPrompt } from "~prompts/answer-generation";
+import { buildRagAnswerPrompt } from "~prompts/rag-answer";
+import { buildRequirementPrompt } from "~prompts/requirements";
 import { buildRelevantProfileContext, formatSourcesAsValue } from "~lib/profile-context";
 import { aiCacheRepository } from "~storage/ai-cache-repository";
-import { parseClassification, parseGeneratedAnswer, parseJobAnalysis } from "./schemas";
+import { knowledgeRepository } from "~storage/knowledge-repository";
+import { embeddingRepository } from "~storage/embedding-repository";
+import { OllamaEmbeddingProvider } from "./ollama-embeddings";
+import { createRetriever } from "~retrieval/hybrid";
+import { buildRetrievalQuery } from "~retrieval/query";
+import {
+  fallbackRequirementsFromText,
+  matchRequirements
+} from "~knowledge/match-requirements";
+import { ensureKnowledgeForProfile } from "~knowledge/sync";
+import {
+  parseClassification,
+  parseGeneratedAnswer,
+  parseJobAnalysis,
+  parseJobRequirements,
+  parseRagAnswer
+} from "./schemas";
 import { generateValidated } from "./generate";
 import { buildCacheKey } from "./cache-key";
 import { groundGeneratedAnswer, groundJobAnalysis } from "./ground";
@@ -149,6 +169,110 @@ export async function analyzeJobWithAi(input: {
   return groundJobAnalysis(analysis, input.profile);
 }
 
+export async function retrieveEvidence(input: {
+  settings: AiSettings;
+  query: string;
+  profile?: UserProfile;
+}): Promise<RetrievalResult[]> {
+  const items = input.profile
+    ? await ensureKnowledgeForProfile(input.profile)
+    : await knowledgeRepository.list();
+  if (!items.length) return [];
+  const embeddings = input.settings.embeddingModel
+    ? await embeddingRepository.list()
+    : [];
+  const embedder = input.settings.embeddingModel
+    ? new OllamaEmbeddingProvider(
+        input.settings.ollamaUrl,
+        input.settings.embeddingModel,
+        Math.min(input.settings.timeoutMs, 15_000)
+      )
+    : undefined;
+  const retriever = createRetriever(items, embeddings, embedder);
+  return retriever.search(input.query);
+}
+
+export async function extractJobRequirements(input: {
+  provider: AIProvider;
+  settings: AiSettings;
+  job: JobContext;
+  profile: UserProfile;
+}): Promise<JobRequirement[]> {
+  const prompt = buildRequirementPrompt(input.job);
+  try {
+    const parsed = await cached(
+      "job-requirements",
+      input.profile.metadata.updatedAt,
+      {
+        model: input.settings.model,
+        title: input.job.title,
+        description: input.job.description?.slice(0, 2000)
+      },
+      () =>
+        generateValidated(
+          input.provider,
+          {
+            systemPrompt: prompt.systemPrompt,
+            userPrompt: prompt.userPrompt,
+            model: input.settings.model,
+            temperature: 0.1
+          },
+          parseJobRequirements
+        )
+    );
+    return parsed.requirements;
+  } catch (error) {
+    logAiError("requirements", error);
+    const catalog = [
+      ...input.profile.skills,
+      "React",
+      "TypeScript",
+      "Node.js",
+      "Python",
+      "AWS",
+      "Docker",
+      "Kubernetes"
+    ];
+    return fallbackRequirementsFromText(input.job.description ?? "", catalog);
+  }
+}
+
+export async function analyzeJobMatch(input: {
+  provider: AIProvider;
+  settings: AiSettings;
+  job: JobContext;
+  profile: UserProfile;
+}): Promise<{ analysis: JobAnalysis; match: JobMatch; evidence: RetrievalResult[] }> {
+  const analysis = await analyzeJobWithAi(input);
+  const items = await ensureKnowledgeForProfile(input.profile);
+  const requirements = input.settings.model
+    ? await extractJobRequirements(input)
+    : fallbackRequirementsFromText(input.job.description ?? "", input.profile.skills);
+  const match = matchRequirements(requirements, items);
+  const evidence = await retrieveEvidence({
+    settings: input.settings,
+    query: buildRetrievalQuery({ job: input.job }),
+    profile: input.profile
+  });
+  return {
+    analysis: {
+      ...analysis,
+      matchingSkills: match.matchedRequirements
+        .filter((item) => item.requirement.category === "technical")
+        .map((item) => item.requirement.name),
+      missingSkills: match.unmatchedRequirements.map((item) => item.name),
+      matchingExperience: match.evidence
+        .filter((item) => item.item.type === "experience")
+        .map((item) => item.item.title),
+      relevantProjects: match.evidence
+        .filter((item) => item.item.type === "project")
+        .map((item) => item.item.title)
+    },
+    match: { ...match, evidence },
+    evidence
+  };
+}
+
 export async function generateAnswerWithAi(input: {
   provider: AIProvider;
   settings: AiSettings;
@@ -160,6 +284,86 @@ export async function generateAnswerWithAi(input: {
   skipCache?: boolean;
 }): Promise<GeneratedAnswer> {
   if (!input.settings.model) throw new AppError("AI_NO_MODEL");
+
+  const evidence = await retrieveEvidence({
+    settings: input.settings,
+    query: buildRetrievalQuery({ question: input.question.question, job: input.job }),
+    profile: input.profile
+  });
+
+  if (evidence.length) {
+    const allowed = new Set(evidence.map((item) => item.item.id));
+    const prompt = buildRagAnswerPrompt({
+      question: input.question,
+      job: input.job,
+      evidence,
+      tone: input.tone,
+      length: input.length
+    });
+    const rag = await cached(
+      "rag-answer",
+      input.profile.metadata.updatedAt,
+      {
+        model: input.settings.model,
+        question: input.question.question,
+        maxLength: input.question.maxLength,
+        tone: input.tone ?? "professional",
+        length: input.length ?? "medium",
+        evidenceIds: evidence.map((item) => item.item.id),
+        title: input.job.title
+      },
+      () =>
+        generateValidated(
+          input.provider,
+          {
+            systemPrompt: prompt.systemPrompt,
+            userPrompt: prompt.userPrompt,
+            model: input.settings.model,
+            temperature: 0.15
+          },
+          parseRagAnswer
+        ),
+      input.skipCache
+    );
+
+    const validIds = rag.sourceIds.filter((id) => allowed.has(id));
+    if (rag.sourceIds.length && validIds.length !== rag.sourceIds.length) {
+      throw new AppError("AI_INVALID", "AI returned an unknown evidence source.");
+    }
+    if (!rag.answer.trim() || rag.needsUserInput) {
+      return {
+        answer: "",
+        confidence: 0,
+        sources: [],
+        sourceIds: [],
+        citations: [],
+        needsUserInput: true,
+        missingInformation: rag.missingInformation?.length
+          ? rag.missingInformation
+          : ["No strong evidence found."]
+      };
+    }
+
+    const citations = evidence
+      .filter((item) => validIds.includes(item.item.id) || validIds.length === 0)
+      .slice(0, 6)
+      .map((item) => ({ knowledgeId: item.item.id, title: item.item.title }));
+
+    return groundGeneratedAnswer(
+      {
+        answer: rag.answer,
+        confidence: rag.confidence,
+        sources: citations.map((item) => item.title),
+        sourceIds: citations.map((item) => item.knowledgeId),
+        citations,
+        needsUserInput: false,
+        missingInformation: rag.missingInformation
+      },
+      input.profile,
+      input.question.maxLength ?? 800
+    );
+  }
+
   const profileContext = buildRelevantProfileContext({
     question: input.question.question,
     job: input.job,

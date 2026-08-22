@@ -115,19 +115,42 @@ Form filler (never Submit)
 
 Job analysis and answer generation are explicit button clicks. They are not run on page load.
 
+Phase 3 retrieval:
+
+```text
+Question + job
+      ↓
+Career knowledge (derived from profile)
+      ↓
+Keyword search (+ optional Ollama embeddings)
+      ↓
+Top evidence only
+      ↓
+Ollama
+      ↓
+Validate source IDs → user review
+```
+
 | Area | Path |
 | --- | --- |
 | Domain types | `types/` |
 | Resume parsers | `parser/` |
 | IndexedDB | `storage/` |
+| Career knowledge | `knowledge/` |
+| Retrieval / RAG | `retrieval/` |
 | Field matching | `matching/` |
 | AI provider / Ollama | `ai/` |
 | Prompts | `prompts/` |
-| Form detect / job extract / fill | `lib/` |
-| Content script | `contents/form-scanner.ts` |
 | Popup UI | `popup.tsx`, `components/` |
 
-The rest of the app depends on `AIProvider`, not on Ollama types. Model output is JSON that is Zod-validated. Profile sources are allowlisted. The model never receives DOM nodes and never performs fill or navigation.
+The profile remains the source of truth. Knowledge items are a search index. Embeddings are optional (`embeddingModel` in AI settings). If no embedding model is set, lexical retrieval is used.
+
+## Phase 3 extras
+
+- **Knowledge** tab: inspect, search, add, edit derived/manual evidence; rebuild embedding index.
+- **Apps** tab: save jobs, statuses, notes, dashboard counts, search.
+- **Job** tab: Save Job, Analyze Job, evidence list, Mark as Applied (never inferred from the page).
+- Answers cite knowledge titles. Previous similar answers can be reused after review.
 
 ## Known limitations
 
@@ -136,13 +159,13 @@ The rest of the app depends on `AIProvider`, not on Ollama types. Model output i
 - Content scripts run in the top frame only. Cross-origin ATS iframes are not filled.
 - Checkbox, radio, file, date, and password controls are ignored.
 - The extension never clicks Submit, Apply, or Next.
+- Semantic search only works if you configure a local Ollama embedding model. It was unit-tested with cosine similarity and a mocked-free keyword fallback; a live embedding model was not run in CI.
 - Ollama quality depends on the local model you install.
 - PDF.js needs `assets/pdf.worker.min.mjs` (copied on `npm install`).
 
-## Phase 3 (not implemented)
+## Phase 4 (not implemented)
 
-- Local embeddings / RAG over experience
-- Multiple resume versions
-- Application tracking
 - Cover letter drafts
+- Multiple resume versions
 - Iframe / ATS-specific adapters
+- Richer local embeddings UI / batch import of large archives

@@ -84,6 +84,7 @@ export interface UserProfile {
     sourceFileName?: string;
     createdAt: string;
     updatedAt: string;
+    version?: number;
   };
 }
 

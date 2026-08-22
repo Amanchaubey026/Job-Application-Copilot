@@ -45,3 +45,31 @@ export function parseGeneratedAnswer(value: unknown) {
 export function parseJobAnalysis(value: unknown) {
   return jobAnalysisSchema.parse(value);
 }
+
+export const ragAnswerSchema = z.object({
+  answer: z.string().max(8000),
+  confidence,
+  sourceIds: z.array(z.string().min(1).max(120)).max(20),
+  needsUserInput: z.boolean(),
+  missingInformation: z.array(z.string().max(200)).max(20).optional()
+});
+
+export const jobRequirementsSchema = z.object({
+  requirements: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(80),
+        category: z.enum(["technical", "experience", "education", "soft_skill", "other"]),
+        importance: z.enum(["required", "preferred", "unknown"])
+      })
+    )
+    .max(40)
+});
+
+export function parseRagAnswer(value: unknown) {
+  return ragAnswerSchema.parse(value);
+}
+
+export function parseJobRequirements(value: unknown) {
+  return jobRequirementsSchema.parse(value);
+}

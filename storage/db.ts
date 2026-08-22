@@ -1,8 +1,12 @@
 export const DB_NAME = "job-application-copilot";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 export const PROFILE_STORE = "profiles";
 export const SETTINGS_STORE = "settings";
 export const AI_CACHE_STORE = "ai-cache";
+export const KNOWLEDGE_STORE = "knowledge";
+export const EMBEDDING_STORE = "embeddings";
+export const APPLICATION_STORE = "applications";
+export const ANSWER_LIBRARY_STORE = "answers";
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 let dbInstance: IDBDatabase | null = null;
@@ -16,6 +20,18 @@ function ensureStores(db: IDBDatabase): void {
   }
   if (!db.objectStoreNames.contains(AI_CACHE_STORE)) {
     db.createObjectStore(AI_CACHE_STORE, { keyPath: "key" });
+  }
+  if (!db.objectStoreNames.contains(KNOWLEDGE_STORE)) {
+    db.createObjectStore(KNOWLEDGE_STORE, { keyPath: "id" });
+  }
+  if (!db.objectStoreNames.contains(EMBEDDING_STORE)) {
+    db.createObjectStore(EMBEDDING_STORE, { keyPath: "knowledgeId" });
+  }
+  if (!db.objectStoreNames.contains(APPLICATION_STORE)) {
+    db.createObjectStore(APPLICATION_STORE, { keyPath: "id" });
+  }
+  if (!db.objectStoreNames.contains(ANSWER_LIBRARY_STORE)) {
+    db.createObjectStore(ANSWER_LIBRARY_STORE, { keyPath: "id" });
   }
 }
 
@@ -81,6 +97,25 @@ export function withStore<T>(
           reject(request.error ?? new Error("IndexedDB request failed."));
         tx.onerror = () =>
           reject(tx.error ?? new Error("IndexedDB transaction failed."));
+      })
+  );
+}
+
+export function withTransaction(
+  storeName: string,
+  mode: IDBTransactionMode,
+  run: (store: IDBObjectStore) => void
+): Promise<void> {
+  return openDatabase().then(
+    (db) =>
+      new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(storeName, mode);
+        run(tx.objectStore(storeName));
+        tx.oncomplete = () => resolve();
+        tx.onerror = () =>
+          reject(tx.error ?? new Error("IndexedDB transaction failed."));
+        tx.onabort = () =>
+          reject(tx.error ?? new Error("IndexedDB transaction aborted."));
       })
   );
 }

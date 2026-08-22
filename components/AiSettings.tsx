@@ -13,6 +13,7 @@ type Props = {
 export function AiSettingsPanel({ settings, onSaved }: Props) {
   const [url, setUrl] = useState(settings.ollamaUrl);
   const [model, setModel] = useState(settings.model);
+  const [embeddingModel, setEmbeddingModel] = useState(settings.embeddingModel);
   const [temperature, setTemperature] = useState(String(settings.temperature));
   const [models, setModels] = useState<AIModel[]>([]);
   const [connected, setConnected] = useState<boolean | null>(null);
@@ -23,6 +24,7 @@ export function AiSettingsPanel({ settings, onSaved }: Props) {
   useEffect(() => {
     setUrl(settings.ollamaUrl);
     setModel(settings.model);
+    setEmbeddingModel(settings.embeddingModel);
     setTemperature(String(settings.temperature));
   }, [settings]);
 
@@ -70,6 +72,7 @@ export function AiSettingsPanel({ settings, onSaved }: Props) {
         ...settings,
         ollamaUrl: url.trim() || "http://localhost:11434",
         model: model.trim(),
+        embeddingModel: embeddingModel.trim(),
         temperature: Number.parseFloat(temperature) || 0.2
       };
       await settingsRepository.saveSettings(next);
@@ -113,6 +116,22 @@ export function AiSettingsPanel({ settings, onSaved }: Props) {
               onChange={(event) => setModel(event.target.value)}
             />
           )}
+        </div>
+        <div className="field">
+          <label htmlFor="embed-model">Embedding model (optional)</label>
+          <select
+            id="embed-model"
+            value={embeddingModel}
+            onChange={(event) => setEmbeddingModel(event.target.value)}
+          >
+            <option value="">Lexical retrieval only</option>
+            {models.map((item) => (
+              <option key={`e-${item.name}`} value={item.name}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+          <p className="tiny">If unset, keyword search is used. Semantic search needs a local embedding model such as nomic-embed-text.</p>
         </div>
         <TextField
           label="Temperature"
