@@ -241,6 +241,31 @@ select:focus-visible {
   gap: 8px;
 }
 
+.fill-cta {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: var(--shadow);
+}
+
+.btn-fill-page {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 14px;
+}
+
+.fill-cta-hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.4;
+}
+
 .banner {
   border-radius: 8px;
   padding: 10px 12px;

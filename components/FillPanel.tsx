@@ -196,29 +196,15 @@ export function FillPanel({
 
       <div className="btn-row">
         <button
-          className="btn btn-primary"
+          className="btn btn-secondary"
           type="button"
           disabled={filling || selectedReady.length === 0}
           onClick={() => onFill(selectedReady.map((item) => item.field.id))}
         >
-          {filling ? "Filling…" : "Fill Selected"}
-        </button>
-        <button
-          className="btn btn-secondary"
-          type="button"
-          disabled={filling || readyCount === 0}
-          onClick={() => {
-            selectHighConfidence();
-            const ids = matches
-              .filter((item) => shouldAutoselect(item.match))
-              .map((item) => item.field.id);
-            onFill(ids);
-          }}
-        >
-          Fill Ready Fields
+          {filling ? "Filling…" : "Fill selected"}
         </button>
         <button className="btn btn-secondary" type="button" onClick={selectHighConfidence}>
-          Select All High Confidence
+          Select high confidence
         </button>
         <button className="btn btn-secondary" type="button" disabled={busy} onClick={onRefresh}>
           {classifying ? "Classifying fields…" : "Refresh Detection"}

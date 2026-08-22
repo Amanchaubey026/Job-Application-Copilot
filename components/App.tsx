@@ -5,6 +5,7 @@ import { analyzeJobMatch, generateAnswerWithAi, retrieveEvidence } from "~ai/ser
 import { fillActiveTab, scanActiveTab } from "~lib/extension-client";
 import { jobIdentity } from "~lib/job-extractor";
 import { matchFieldsPhase2 } from "~matching/pipeline";
+import { shouldAutoselect } from "~matching";
 import { parseResumeFile } from "~parser";
 import { profileRepository } from "~storage/profile-repository";
 import { defaultAiSettings, settingsRepository } from "~storage/settings-repository";
@@ -55,6 +56,7 @@ import type { ExtractionSummary, UserProfile } from "~types/profile";
 import { AiSettingsPanel } from "./AiSettings";
 import { ApplicationsPanel } from "./ApplicationsPanel";
 import { ErrorBanner } from "./ErrorBanner";
+import { FillActionBar } from "./FillActionBar";
 import { FillPanel } from "./FillPanel";
 import { JobPanel } from "./JobPanel";
 import { KnowledgePanel } from "./KnowledgePanel";
@@ -162,7 +164,7 @@ export function App() {
       if (!currentProfile) {
         setScanError("No profile found. Upload your resume first.");
         setMatches([]);
-        return;
+        return [];
       }
       setBusy(true);
       setScanError(null);
@@ -175,7 +177,7 @@ export function App() {
           setJob(null);
           setQuestions([]);
           setScanError(response.error);
-          return;
+          return [];
         }
         setPage(response.page);
         setJob(response.job);
@@ -191,30 +193,26 @@ export function App() {
         if (response.fields.length === 0) {
           setMatches([]);
           setScanError("No recognizable form fields found on this page.");
-        } else if (useAi && ollamaReady && settings && provider) {
-          setClassifying(true);
-          const next = await matchFieldsPhase2({
-            fields: response.fields,
-            profile: currentProfile,
-            questions: response.questions,
-            provider,
-            settings,
-            aiEnabled: true
-          });
-          setMatches(next);
-        } else {
-          const next = await matchFieldsPhase2({
-            fields: response.fields,
-            profile: currentProfile,
-            questions: response.questions,
-            aiEnabled: false
-          });
-          setMatches(next);
+          return [];
         }
+        if (useAi && ollamaReady && settings && provider) {
+          setClassifying(true);
+        }
+        const next = await matchFieldsPhase2({
+          fields: response.fields,
+          profile: currentProfile,
+          questions: response.questions,
+          provider: useAi ? provider ?? undefined : undefined,
+          settings: useAi ? settings : undefined,
+          aiEnabled: Boolean(useAi && ollamaReady && settings && provider)
+        });
+        setMatches(next);
+        return next;
       } catch (err) {
         setMatches([]);
         setPage(null);
         setScanError(toUserMessage(err));
+        return [];
       } finally {
         setClassifying(false);
         setBusy(false);
@@ -224,12 +222,12 @@ export function App() {
   );
 
   useEffect(() => {
-    if (phase === "ready" && profile && (tab === "apply" || tab === "job")) {
-      void refreshScan(profile, tab === "apply");
+    if (phase === "ready" && profile) {
+      void refreshScan(profile, true);
     }
-    // Initial scan only when the tab or profile first becomes ready.
+    // Scan when a profile becomes available so Fill this page can show ready fields.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, profile?.id, tab]);
+  }, [phase, profile?.id]);
 
   useEffect(() => {
     const listener = (message: {
@@ -307,6 +305,9 @@ export function App() {
       await profileRepository.saveProfile(result.profile);
       await aiCacheRepository.clear().catch(() => undefined);
       setKnowledge(await syncKnowledgeFromProfile(result.profile));
+      const versions = await ensureMasterResume(result.profile);
+      setResumes(versions);
+      setSelectedResumeId(versions[0]?.id ?? "");
       setProfile(result.profile);
       setSummary(result.summary);
       setReplacing(false);
@@ -352,30 +353,66 @@ export function App() {
     }
   }
 
+  async function applyFill(matched: MatchedField[], fieldIds: string[]) {
+    const fields = matched
+      .filter((item) => fieldIds.includes(item.field.id) && item.match?.value.trim())
+      .map((item) => ({
+        fieldId: item.field.id,
+        value: item.match?.value ?? ""
+      }));
+    if (fields.length === 0) {
+      setFillMessage("No ready fields to fill on this page. Review your profile or the Apply tab.");
+      return;
+    }
+    const response = await fillActiveTab(fields);
+    if (!response.ok) {
+      setError(response.error);
+      return;
+    }
+    const filled = response.results.filter((result) => result.ok).length;
+    const failed = response.results.filter((result) => !result.ok).length;
+    setFillMessage(
+      failed
+        ? `Filled ${filled} field${filled === 1 ? "" : "s"}. ${failed} could not be filled.`
+        : `Filled ${filled} field${filled === 1 ? "" : "s"}. The application was not submitted.`
+    );
+  }
+
   async function handleFill(fieldIds: string[]) {
     if (!profile) return;
     setFilling(true);
     setFillMessage(null);
     setError(null);
     try {
-      const fields = matches
-        .filter((item) => fieldIds.includes(item.field.id) && item.match?.value.trim())
-        .map((item) => ({
-          fieldId: item.field.id,
-          value: item.match?.value ?? ""
-        }));
-      const response = await fillActiveTab(fields);
-      if (!response.ok) {
-        setError(response.error);
+      await applyFill(matches, fieldIds);
+    } catch (err) {
+      setError(toUserMessage(err));
+    } finally {
+      setFilling(false);
+    }
+  }
+
+  async function handleFillPage() {
+    if (!profile) return;
+    setTab("apply");
+    setFilling(true);
+    setFillMessage(null);
+    setError(null);
+    setScanError(null);
+    try {
+      const matched = await refreshScan(profile, true);
+      const ids = matched
+        .filter((item) => shouldAutoselect(item.match))
+        .map((item) => item.field.id);
+      if (ids.length === 0) {
+        setFillMessage(
+          matched.length
+            ? "Fields were found, but none were high-confidence matches. Review them on the Apply tab."
+            : "No form fields found on this page. Open a job application, then try again."
+        );
         return;
       }
-      const filled = response.results.filter((result) => result.ok).length;
-      const failed = response.results.filter((result) => !result.ok).length;
-      setFillMessage(
-        failed
-          ? `Filled ${filled} field${filled === 1 ? "" : "s"}. ${failed} could not be filled.`
-          : `Filled ${filled} field${filled === 1 ? "" : "s"}. The application was not submitted.`
-      );
+      await applyFill(matched, ids);
     } catch (err) {
       setError(toUserMessage(err));
     } finally {
@@ -623,6 +660,11 @@ export function App() {
     return profile?.personal.fullName || profile?.personal.firstName || "Unnamed profile";
   }, [profile]);
 
+  const readyCount = useMemo(
+    () => matches.filter((item) => shouldAutoselect(item.match)).length,
+    [matches]
+  );
+
   if (phase === "loading") {
     return (
       <div className="app">
@@ -714,6 +756,20 @@ export function App() {
       <main className="main">
         <div className="stack">
           <ErrorBanner message={error} />
+
+          {profile ? (
+            <FillActionBar
+              readyCount={readyCount}
+              fieldCount={matches.length}
+              filling={filling}
+              busy={busy}
+              classifying={classifying}
+              pageHost={page?.hostname}
+              scanError={scanError}
+              onFillPage={() => void handleFillPage()}
+              onScan={() => void refreshScan(profile, true)}
+            />
+          ) : null}
 
           {tab === "apply" && profile ? (
             <>
@@ -1036,6 +1092,7 @@ export function App() {
             <ParseSummary
               fileName={profile.metadata.sourceFileName}
               summary={summary}
+              profile={profile}
               onReview={() => setSummary(null)}
             />
           ) : null}

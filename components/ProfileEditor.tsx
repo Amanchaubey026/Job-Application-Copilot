@@ -314,7 +314,7 @@ export function ProfileEditor({
 
       {saved ? (
         <div className="banner banner-success" role="status">
-          Profile saved locally.
+          Profile saved locally. Use Fill this page on a job application tab.
         </div>
       ) : null}
 

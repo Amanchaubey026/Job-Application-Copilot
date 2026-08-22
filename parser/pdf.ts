@@ -1,5 +1,6 @@
 import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from "pdfjs-dist";
 import { parseFailedError } from "./errors";
+import { reconstructPdfText, type PdfTextItem } from "./pdf-text";
 
 let workerReady = false;
 
@@ -9,34 +10,6 @@ function ensureWorker(): void {
     GlobalWorkerOptions.workerSrc = chrome.runtime.getURL("pdf.worker.min.mjs");
   }
   workerReady = true;
-}
-
-function lineKeyFromItem(item: { transform?: number[] }): number {
-  const y = item.transform?.[5];
-  return typeof y === "number" ? Math.round(y) : 0;
-}
-
-function extractPageLines(
-  items: Array<{ str?: string; transform?: number[] }>
-): string {
-  const lines = new Map<number, string[]>();
-  const order: number[] = [];
-
-  for (const item of items) {
-    const text = item.str ?? "";
-    if (!text) continue;
-    const key = lineKeyFromItem(item);
-    if (!lines.has(key)) {
-      lines.set(key, []);
-      order.push(key);
-    }
-    lines.get(key)?.push(text);
-  }
-
-  return order
-    .map((key) => (lines.get(key) ?? []).join(" ").replace(/\s+/g, " ").trim())
-    .filter(Boolean)
-    .join("\n");
 }
 
 export async function extractTextFromPdf(data: ArrayBuffer): Promise<string> {
@@ -58,20 +31,28 @@ export async function extractTextFromPdf(data: ArrayBuffer): Promise<string> {
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
       const content = await page.getTextContent();
-      const items = content.items.flatMap((item) => {
+      const items: PdfTextItem[] = content.items.flatMap((item) => {
         if (typeof item === "object" && item !== null && "str" in item) {
+          const typed = item as {
+            str?: unknown;
+            transform?: unknown;
+            width?: unknown;
+            height?: unknown;
+            hasEOL?: unknown;
+          };
           return [
             {
-              str: String((item as { str: unknown }).str ?? ""),
-              transform: Array.isArray((item as { transform?: unknown }).transform)
-                ? ((item as { transform: number[] }).transform)
-                : []
+              str: String(typed.str ?? ""),
+              transform: Array.isArray(typed.transform) ? (typed.transform as number[]) : [],
+              width: typeof typed.width === "number" ? typed.width : undefined,
+              height: typeof typed.height === "number" ? typed.height : undefined,
+              hasEOL: Boolean(typed.hasEOL)
             }
           ];
         }
         return [];
       });
-      pages.push(extractPageLines(items));
+      pages.push(reconstructPdfText(items));
     }
 
     return pages.filter(Boolean).join("\n\n").trim();
