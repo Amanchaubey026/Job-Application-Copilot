@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Job Application Copilot — Test Application</title>
+    <style>
+      :root {
+        font-family: "Segoe UI", system-ui, sans-serif;
+        color: #171717;
+        background: #f4f4f0;
+      }
+      body {
+        margin: 0 auto;
+        max-width: 880px;
+        padding: 32px 20px 80px;
+      }
+      h1,
+      h2 {
+        letter-spacing: -0.02em;
+      }
+      section {
+        background: white;
+        border: 1px solid #e5e5e5;
+        border-radius: 12px;
+        padding: 20px;
+        margin: 20px 0;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        font-weight: 650;
+        margin: 12px 0 4px;
+      }
+      input,
+      textarea,
+      select {
+        width: 100%;
+        max-width: 480px;
+        padding: 8px 10px;
+        border: 1px solid #d4d4d4;
+        border-radius: 8px;
+        font: inherit;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      button {
+        margin-top: 16px;
+        padding: 8px 14px;
+        border: 0;
+        border-radius: 8px;
+        background: #0f766e;
+        color: white;
+        font-weight: 650;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: #e5e5e5;
+        color: #171717;
+      }
+      .state {
+        margin-top: 8px;
+        font-size: 13px;
+        color: #525252;
+      }
+      .ok {
+        color: #15803d;
+      }
+      #submit-count {
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Job application test page</h1>
+    <p>
+      Use this page to verify Job Application Copilot field detection, matching, filling, and
+      MutationObserver support. Submit is only here to prove the extension never clicks it.
+    </p>
+
+    <section id="standard">
+      <h2>Standard HTML</h2>
+      <form id="html-form">
+        <div class="row">
+          <div>
+            <label for="first_name">First Name</label>
+            <input id="first_name" name="first_name" autocomplete="given-name" />
+          </div>
+          <div>
+            <label for="last_name">Last Name</label>
+            <input id="last_name" name="last_name" autocomplete="family-name" />
+          </div>
+        </div>
+        <label>Email Address</label>
+        <input name="candidate_email" placeholder="you@example.com" />
+        <label for="phone">Phone</label>
+        <input id="phone" name="phone_number" type="tel" autocomplete="tel" />
+        <label for="linkedin">LinkedIn</label>
+        <input id="linkedin" name="linkedin_url" />
+        <label for="github">GitHub</label>
+        <input id="github" name="github_profile" />
+        <label for="portfolio">Portfolio</label>
+        <input id="portfolio" name="portfolio_url" />
+        <label for="company">Current Company</label>
+        <input id="company" name="current_company" />
+        <label for="title">Current Job Title</label>
+        <input id="title" name="current_job_title" />
+        <label for="university">University</label>
+        <input id="university" name="university" />
+        <label for="degree">Degree</label>
+        <input id="degree" name="degree" />
+        <div class="row">
+          <div>
+            <label for="city">City</label>
+            <input id="city" name="city" autocomplete="address-level2" />
+          </div>
+          <div>
+            <label for="state">State</label>
+            <input id="state" name="state" autocomplete="address-level1" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="zip">Postal Code</label>
+            <input id="zip" name="zip_code" autocomplete="postal-code" />
+          </div>
+          <div>
+            <label for="country">Country</label>
+            <select id="country" name="country" autocomplete="country-name">
+              <option value="">Select</option>
+              <option value="India">India</option>
+              <option value="United States">United States</option>
+              <option value="United Kingdom">United Kingdom</option>
+              <option value="Canada">Canada</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit">Submit application</button>
+      </form>
+      <p class="state">Submit clicks: <span id="submit-count">0</span></p>
+    </section>
+
+    <section id="react-like">
+      <h2>React-like controlled inputs</h2>
+      <p>These fields only update visible state when they receive <code>input</code> events.</p>
+      <label for="react-email">Email Address</label>
+      <input id="react-email" name="email" />
+      <p class="state">React state: <span id="react-email-state"></span></p>
+      <label for="react-first">First Name</label>
+      <input id="react-first" name="firstName" />
+      <p className="state" class="state">React state: <span id="react-first-state"></span></p>
+    </section>
+
+    <section id="dynamic">
+      <h2>Dynamically rendered form</h2>
+      <p>Click the button or wait 3 seconds. New fields are injected into the DOM.</p>
+      <button class="secondary" id="add-dynamic" type="button">Add fields now</button>
+      <div id="dynamic-root"></div>
+    </section>
+
+    <script>
+      let submits = 0;
+      document.getElementById("html-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        submits += 1;
+        document.getElementById("submit-count").textContent = String(submits);
+        alert("Submit was clicked. The extension should never do this.");
+      });
+
+      function bindControlled(id, stateId) {
+        const input = document.getElementById(id);
+        const state = document.getElementById(stateId);
+        let value = "";
+        input._valueTracker = {
+          getValue() {
+            return value;
+          },
+          setValue(next) {
+            value = next;
+          }
+        };
+        input.addEventListener("input", () => {
+          value = input.value;
+          state.textContent = value;
+          state.classList.toggle("ok", Boolean(value));
+        });
+      }
+      bindControlled("react-email", "react-email-state");
+      bindControlled("react-first", "react-first-state");
+
+      function addDynamicFields() {
+        const root = document.getElementById("dynamic-root");
+        if (root.dataset.ready) return;
+        root.dataset.ready = "true";
+        root.innerHTML = `
+          <label for="dyn-phone">Phone Number</label>
+          <input id="dyn-phone" name="mobile_number">
+          <label for="dyn-linkedin">LinkedIn Profile URL</label>
+          <input id="dyn-linkedin" name="linkedin">
+        `;
+      }
+      document.getElementById("add-dynamic").addEventListener("click", addDynamicFields);
+      setTimeout(addDynamicFields, 3000);
+    </script>
+  </body>
+</html>

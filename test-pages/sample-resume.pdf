@@ -1,0 +1,81 @@
+%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
+3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj
+4 0 obj << /Length 1091 >> stream
+BT
+/F1 11 Tf
+50 740 Td
+(Aman Chaubey) Tj
+0 -16 Td
+(Full Stack Developer) Tj
+0 -16 Td
+(Bengaluru, Karnataka, India) Tj
+0 -16 Td
+(aman@example.com | +91 98765 43210) Tj
+0 -16 Td
+(https://linkedin.com/in/amanchaubey) Tj
+0 -16 Td
+(https://github.com/amanchaubey) Tj
+0 -16 Td
+(https://amanchaubey.dev) Tj
+0 -16 Td
+() Tj
+0 -16 Td
+(EXPERIENCE) Tj
+0 -16 Td
+(Fluid AI) Tj
+0 -16 Td
+(Full Stack Developer) Tj
+0 -16 Td
+(Jan 2023 - Present) Tj
+0 -16 Td
+(Built internal tooling and web applications using React, Node.js, and TypeScript.) Tj
+0 -16 Td
+(Acme Corp) Tj
+0 -16 Td
+(Software Engineer) Tj
+0 -16 Td
+(Jun 2021 - Dec 2022) Tj
+0 -16 Td
+(Worked on customer-facing dashboards.) Tj
+0 -16 Td
+() Tj
+0 -16 Td
+(EDUCATION) Tj
+0 -16 Td
+(Indian Institute of Technology) Tj
+0 -16 Td
+(B.Tech in Computer Science) Tj
+0 -16 Td
+(2017 - 2021) Tj
+0 -16 Td
+() Tj
+0 -16 Td
+(SKILLS) Tj
+0 -16 Td
+(React, Next.js, TypeScript, Node.js, MongoDB) Tj
+0 -16 Td
+() Tj
+0 -16 Td
+(PROJECTS) Tj
+0 -16 Td
+(Job Application Copilot) Tj
+0 -16 Td
+(Browser extension that fills job applications from a local resume profile.) Tj
+0 -16 Td
+ET
+endstream endobj
+5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000001384 00000 n 
+trailer << /Size 6 /Root 1 0 R >>
+startxref
+1454
+%%EOF

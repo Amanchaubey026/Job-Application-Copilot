@@ -1,0 +1,33 @@
+Aman Chaubey
+Full Stack Developer
+Bengaluru, Karnataka, India
+aman@example.com | +91 98765 43210
+https://linkedin.com/in/amanchaubey
+https://github.com/amanchaubey
+https://amanchaubey.dev
+
+EXPERIENCE
+
+Fluid AI
+Full Stack Developer
+Jan 2023 – Present
+Built internal tooling and web applications using React, Node.js, and TypeScript.
+
+Acme Corp
+Software Engineer
+Jun 2021 – Dec 2022
+Worked on customer-facing dashboards.
+
+EDUCATION
+
+Indian Institute of Technology
+B.Tech in Computer Science
+2017 – 2021
+
+SKILLS
+React, Next.js, TypeScript, Node.js, MongoDB
+
+PROJECTS
+
+Job Application Copilot
+Browser extension that fills job applications from a local resume profile.
