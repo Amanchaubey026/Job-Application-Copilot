@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createOllamaProvider } from "~ai/ollama-provider";
+import { tryCreateOllamaProvider } from "~ai/ollama-provider";
 import { createOrchestrator } from "~ai/orchestrator";
 import { analyzeJobMatch, generateAnswerWithAi, retrieveEvidence } from "~ai/services";
 import { fillActiveTab, scanActiveTab } from "~lib/extension-client";
@@ -7,7 +7,7 @@ import { jobIdentity } from "~lib/job-extractor";
 import { matchFieldsPhase2 } from "~matching/pipeline";
 import { parseResumeFile } from "~parser";
 import { profileRepository } from "~storage/profile-repository";
-import { settingsRepository } from "~storage/settings-repository";
+import { defaultAiSettings, settingsRepository } from "~storage/settings-repository";
 import { aiCacheRepository } from "~storage/ai-cache-repository";
 import { knowledgeRepository } from "~storage/knowledge-repository";
 import { applicationRepository } from "~storage/application-repository";
@@ -87,7 +87,7 @@ export function App() {
   const [filling, setFilling] = useState(false);
   const [fillMessage, setFillMessage] = useState<string | null>(null);
   const [replacing, setReplacing] = useState(false);
-  const [settings, setSettings] = useState<AiSettings | null>(null);
+  const [settings, setSettings] = useState<AiSettings>(() => defaultAiSettings());
   const [ollamaReady, setOllamaReady] = useState(false);
   const [job, setJob] = useState<JobContext | null>(null);
   const [questions, setQuestions] = useState<ApplicationQuestion[]>([]);
@@ -114,10 +114,10 @@ export function App() {
   const [completeness, setCompleteness] = useState<ApplicationCompleteness | null>(null);
   const [cacheCount, setCacheCount] = useState(0);
 
-  const provider = useMemo(() => {
-    if (!settings) return undefined;
-    return createOllamaProvider(settings.ollamaUrl, settings.timeoutMs);
-  }, [settings]);
+  const provider = useMemo(
+    () => tryCreateOllamaProvider(settings.ollamaUrl, settings.timeoutMs),
+    [settings]
+  );
 
   const loadProfile = useCallback(async () => {
     const [stored, storedSettings] = await Promise.all([
@@ -137,11 +137,11 @@ export function App() {
     setCacheCount(await aiCacheRepository.count().catch(() => 0));
     if (storedSettings.model) {
       try {
-        const ready = await createOllamaProvider(
+        const client = tryCreateOllamaProvider(
           storedSettings.ollamaUrl,
           storedSettings.timeoutMs
-        ).isAvailable();
-        setOllamaReady(ready);
+        );
+        setOllamaReady(client ? await client.isAvailable() : false);
       } catch {
         setOllamaReady(false);
       }
@@ -623,7 +623,7 @@ export function App() {
     return profile?.personal.fullName || profile?.personal.firstName || "Unnamed profile";
   }, [profile]);
 
-  if (phase === "loading" || !settings) {
+  if (phase === "loading") {
     return (
       <div className="app">
         <header className="header">
@@ -1007,10 +1007,12 @@ export function App() {
               onSaved={(next) => {
                 setSettings(next);
                 setOllamaReady(Boolean(next.model));
-                void createOllamaProvider(next.ollamaUrl, next.timeoutMs)
-                  .isAvailable()
-                  .then(setOllamaReady)
-                  .catch(() => setOllamaReady(false));
+                const client = tryCreateOllamaProvider(next.ollamaUrl, next.timeoutMs);
+                if (!client) {
+                  setOllamaReady(false);
+                  return;
+                }
+                void client.isAvailable().then(setOllamaReady).catch(() => setOllamaReady(false));
               }}
             />
           ) : null}

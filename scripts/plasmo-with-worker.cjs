@@ -1,5 +1,6 @@
 const { spawn } = require("node:child_process");
 const { copyWorker } = require("./copy-pdf-worker-to-build.cjs");
+const { fixPopupHtml } = require("./fix-popup-html.cjs");
 
 const command = process.argv[2] === "build" ? "build" : "dev";
 const child = spawn("npx", ["plasmo", command], {
@@ -9,11 +10,13 @@ const child = spawn("npx", ["plasmo", command], {
 
 const timer = setInterval(() => {
   copyWorker();
+  fixPopupHtml();
 }, 1000);
 
 function finish(code) {
   clearInterval(timer);
   copyWorker();
+  fixPopupHtml();
   process.exit(code ?? 0);
 }
 

@@ -25,15 +25,15 @@
 html,
 body {
   margin: 0;
-  width: 400px;
-  min-height: 520px;
+  width: 380px;
+  min-height: 240px;
   max-height: 600px;
   background: var(--bg);
   color: var(--text);
 }
 
 #__plasmo {
-  min-height: 520px;
+  min-height: 240px;
 }
 
 button,
@@ -58,7 +58,7 @@ select:focus-visible {
 .app {
   display: flex;
   flex-direction: column;
-  min-height: 520px;
+  min-height: 240px;
   max-height: 600px;
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createOllamaProvider } from "~ai/ollama-provider";
+import { tryCreateOllamaProvider } from "~ai/ollama-provider";
 import { TextField } from "./TextField";
 import type { AIModel, AiSettings } from "~types/ai";
 import { toUserMessage } from "~types/errors";
@@ -48,7 +48,14 @@ export function AiSettingsPanel({
     setError(null);
     setMessage("Checking Ollama…");
     try {
-      const provider = createOllamaProvider(nextUrl, settings.timeoutMs);
+      const provider = tryCreateOllamaProvider(nextUrl, settings.timeoutMs);
+      if (!provider) {
+        setConnected(false);
+        setModels([]);
+        setError("Ollama URL is invalid.");
+        setMessage(null);
+        return;
+      }
       const available = await provider.isAvailable();
       setConnected(available);
       if (!available) {

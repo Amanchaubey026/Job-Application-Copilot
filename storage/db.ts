@@ -54,6 +54,12 @@ export function openDatabase(): Promise<IDBDatabase> {
 
   if (!dbPromise) {
     dbPromise = new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        fn();
+      };
       const request = indexedDB.open(DB_NAME, DB_VERSION);
 
       request.onupgradeneeded = () => {
@@ -61,17 +67,33 @@ export function openDatabase(): Promise<IDBDatabase> {
       };
 
       request.onsuccess = () => {
-        dbInstance = request.result;
-        dbInstance.onclose = () => {
+        finish(() => {
+          dbInstance = request.result;
+          dbInstance.onclose = () => {
+            dbInstance = null;
+            dbPromise = null;
+          };
+          resolve(dbInstance);
+        });
+      };
+      request.onblocked = () => {
+        if (dbInstance) {
+          dbInstance.close();
           dbInstance = null;
-          dbPromise = null;
-        };
-        resolve(dbInstance);
+        }
       };
       request.onerror = () => {
-        dbPromise = null;
-        reject(request.error ?? new Error("Failed to open IndexedDB."));
+        finish(() => {
+          dbPromise = null;
+          reject(request.error ?? new Error("Failed to open IndexedDB."));
+        });
       };
+      setTimeout(() => {
+        finish(() => {
+          dbPromise = null;
+          reject(new Error("IndexedDB open timed out."));
+        });
+      }, 4000);
     });
   }
 

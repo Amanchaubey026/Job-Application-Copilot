@@ -53,3 +53,15 @@ export function createOllamaProvider(
 ): OllamaProvider {
   return new OllamaProvider(new OllamaClient(baseUrl, timeoutMs));
 }
+
+export function tryCreateOllamaProvider(
+  baseUrl?: string,
+  timeoutMs = 60_000
+): OllamaProvider | undefined {
+  if (!baseUrl) return undefined;
+  try {
+    return createOllamaProvider(baseUrl, timeoutMs);
+  } catch {
+    return undefined;
+  }
+}

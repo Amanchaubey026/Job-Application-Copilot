@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "node scripts/plasmo-with-worker.cjs dev",
     "build": "node scripts/plasmo-with-worker.cjs build",
-    "package": "plasmo package && node scripts/copy-pdf-worker-to-build.cjs",
+    "package": "plasmo package && node scripts/copy-pdf-worker-to-build.cjs && node scripts/fix-popup-html.cjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
@@ -19,7 +19,7 @@
     "plasmo": "^0.90.5",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "zod": "^4.4.3"
+    "zod": "3.24.2"
   },
   "devDependencies": {
     "@types/chrome": "0.0.287",
