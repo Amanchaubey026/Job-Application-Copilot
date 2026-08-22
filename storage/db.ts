@@ -1,5 +1,5 @@
 export const DB_NAME = "job-application-copilot";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 export const PROFILE_STORE = "profiles";
 export const SETTINGS_STORE = "settings";
 export const AI_CACHE_STORE = "ai-cache";
@@ -7,6 +7,9 @@ export const KNOWLEDGE_STORE = "knowledge";
 export const EMBEDDING_STORE = "embeddings";
 export const APPLICATION_STORE = "applications";
 export const ANSWER_LIBRARY_STORE = "answers";
+export const RESUME_STORE = "resume-versions";
+export const REVISION_STORE = "resume-revisions";
+export const SNAPSHOT_STORE = "snapshots";
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 let dbInstance: IDBDatabase | null = null;
@@ -32,6 +35,15 @@ function ensureStores(db: IDBDatabase): void {
   }
   if (!db.objectStoreNames.contains(ANSWER_LIBRARY_STORE)) {
     db.createObjectStore(ANSWER_LIBRARY_STORE, { keyPath: "id" });
+  }
+  if (!db.objectStoreNames.contains(RESUME_STORE)) {
+    db.createObjectStore(RESUME_STORE, { keyPath: "id" });
+  }
+  if (!db.objectStoreNames.contains(REVISION_STORE)) {
+    db.createObjectStore(REVISION_STORE, { keyPath: "id" });
+  }
+  if (!db.objectStoreNames.contains(SNAPSHOT_STORE)) {
+    db.createObjectStore(SNAPSHOT_STORE, { keyPath: "id" });
   }
 }
 

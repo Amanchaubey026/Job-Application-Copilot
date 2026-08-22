@@ -26,5 +26,10 @@ export const aiCacheRepository = {
 
   async clear(): Promise<void> {
     await withStore(AI_CACHE_STORE, "readwrite", (store) => store.clear());
+  },
+
+  async count(): Promise<number> {
+    const value = await withStore(AI_CACHE_STORE, "readonly", (store) => store.count());
+    return value ?? 0;
   }
 };

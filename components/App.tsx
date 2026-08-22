@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createOllamaProvider } from "~ai/ollama-provider";
+import { createOrchestrator } from "~ai/orchestrator";
 import { analyzeJobMatch, generateAnswerWithAi, retrieveEvidence } from "~ai/services";
 import { fillActiveTab, scanActiveTab } from "~lib/extension-client";
 import { jobIdentity } from "~lib/job-extractor";
@@ -16,6 +17,20 @@ import { ensureKnowledgeForProfile, indexStatus, rebuildEmbeddings, syncKnowledg
 import { findSimilarAnswers } from "~knowledge/similar-answers";
 import { buildRetrievalQuery } from "~retrieval/query";
 import { createId } from "~utils/id";
+import { contentFromProfile, ensureMasterResume } from "~resumes/from-profile";
+import { applyAcceptedChanges } from "~resumes/diff";
+import { resumeToDocxBytes } from "~resumes/export-docx";
+import { resumeToHtml, resumeToPdfBytes } from "~resumes/export-pdf";
+import { resumeRepository } from "~storage/resume-repository";
+import { snapshotRepository } from "~storage/snapshot-repository";
+import {
+  deleteAllLocalData,
+  exportBackup,
+  findConflicts,
+  importBackup,
+  parseBackup
+} from "~backup/backup";
+import { downloadBytes, downloadJson } from "~utils/download";
 import { toUserMessage } from "~types/errors";
 import type {
   AnswerLength,
@@ -24,7 +39,14 @@ import type {
   GeneratedAnswer,
   JobAnalysis
 } from "~types/ai";
-import type { ApplicationStatus, JobApplication, JobMatch } from "~types/application";
+import type {
+  ApplicationCompleteness,
+  ApplicationStatus,
+  ApplicationStep,
+  JobApplication,
+  JobMatch
+} from "~types/application";
+import type { ResumeTailoring, ResumeVersion } from "~types/resume";
 import type { CareerKnowledgeItem, KnowledgeType } from "~types/knowledge";
 import type { MatchedField } from "~types/matching";
 import type { PageContext } from "~types/form";
@@ -38,9 +60,10 @@ import { JobPanel } from "./JobPanel";
 import { KnowledgePanel } from "./KnowledgePanel";
 import { ParseSummary } from "./ParseSummary";
 import { ProfileEditor } from "./ProfileEditor";
+import { ResumesPanel } from "./ResumesPanel";
 import { UploadResume } from "./UploadResume";
 
-type Tab = "apply" | "job" | "knowledge" | "apps" | "profile" | "settings";
+type Tab = "apply" | "job" | "knowledge" | "apps" | "resumes" | "profile" | "settings";
 type Phase = "loading" | "ready";
 
 type QuestionState = {
@@ -82,6 +105,14 @@ export function App() {
   const [indexing, setIndexing] = useState(false);
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [savedAppId, setSavedAppId] = useState<string | null>(null);
+  const [resumes, setResumes] = useState<ResumeVersion[]>([]);
+  const [selectedResumeId, setSelectedResumeId] = useState<string>("");
+  const [tailoring, setTailoring] = useState<ResumeTailoring | null>(null);
+  const [tailoringBusy, setTailoringBusy] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState<string>("");
+  const [steps, setSteps] = useState<ApplicationStep[]>([]);
+  const [completeness, setCompleteness] = useState<ApplicationCompleteness | null>(null);
+  const [cacheCount, setCacheCount] = useState(0);
 
   const provider = useMemo(() => {
     if (!settings) return undefined;
@@ -98,8 +129,12 @@ export function App() {
     if (stored) {
       const items = await ensureKnowledgeForProfile(stored);
       setKnowledge(items);
+      const versions = await ensureMasterResume(stored);
+      setResumes(versions);
+      setSelectedResumeId(versions[0]?.id ?? "");
     }
     setApplications(await applicationRepository.list().catch(() => []));
+    setCacheCount(await aiCacheRepository.count().catch(() => 0));
     if (storedSettings.model) {
       try {
         const ready = await createOllamaProvider(
@@ -145,6 +180,8 @@ export function App() {
         setPage(response.page);
         setJob(response.job);
         setQuestions(response.questions);
+        setSteps(response.steps ?? []);
+        setCompleteness(response.completeness ?? null);
         const identity = jobIdentity(response.job);
         if (identity !== jobKey) {
           setAnalysis(null);
@@ -401,16 +438,38 @@ export function App() {
     const now = new Date().toISOString();
     const existing = applications.find((app) => jobIdentity(app.job) === jobIdentity(job));
     const record: JobApplication = existing
-      ? { ...existing, job, match: jobMatch ?? existing.match, updatedAt: now }
+      ? {
+          ...existing,
+          job,
+          match: jobMatch ?? existing.match,
+          selectedResumeId: selectedResumeId || existing.selectedResumeId,
+          steps,
+          completeness: completeness ?? existing.completeness,
+          updatedAt: now
+        }
       : {
           id: createId(),
           job,
           status: "saved",
           match: jobMatch ?? undefined,
           answers: [],
+          selectedResumeId,
+          steps,
+          completeness: completeness ?? undefined,
           createdAt: now,
           updatedAt: now
         };
+    await snapshotRepository.save({
+      id: createId(),
+      applicationId: record.id,
+      url: job.url,
+      capturedAt: now,
+      step: steps.find((step) => step.status === "current"),
+      detectedFieldIds: matches.map((item) => item.field.id),
+      completedFields: matches.filter((item) => item.field.currentValue).map((item) => item.field.id),
+      unansweredQuestions: questions.filter((item) => !item.currentValue).map((item) => item.question),
+      selectedResumeId
+    });
     await applicationRepository.save(record);
     setSavedAppId(record.id);
     setApplications(await applicationRepository.list());
@@ -428,6 +487,39 @@ export function App() {
     };
     await applicationRepository.save(next);
     setApplications(await applicationRepository.list());
+  }
+
+  async function handleTailor() {
+    if (!profile || !job || !settings || !provider) return;
+    const current = resumes.find((item) => item.id === selectedResumeId) ?? resumes[0];
+    if (!current) return;
+    setTailoringBusy(true);
+    setError(null);
+    try {
+      const orchestrator = createOrchestrator(provider, settings);
+      const result = await orchestrator.tailorResume({
+        job,
+        profile,
+        resume: current.content
+      });
+      setTailoring(result);
+    } catch (err) {
+      setError(toUserMessage(err));
+    } finally {
+      setTailoringBusy(false);
+    }
+  }
+
+  async function saveResumeVersion(next: ResumeVersion) {
+    await resumeRepository.save(next);
+    await resumeRepository.saveRevision({
+      id: createId(),
+      resumeId: next.id,
+      content: next.content,
+      createdAt: new Date().toISOString()
+    });
+    setResumes(await resumeRepository.list());
+    setSelectedResumeId(next.id);
   }
 
   async function handleGenerate(
@@ -588,6 +680,15 @@ export function App() {
             >
               Apps
             </button>
+            <button
+              className="tab"
+              type="button"
+              role="tab"
+              aria-selected={tab === "resumes"}
+              onClick={() => setTab("resumes")}
+            >
+              Resumes
+            </button>
           </>
         ) : null}
         <button
@@ -625,6 +726,12 @@ export function App() {
                 filling={filling}
                 classifying={classifying}
                 fillMessage={fillMessage}
+                resumes={resumes}
+                selectedResumeId={selectedResumeId}
+                steps={steps}
+                completeness={completeness}
+                unanswered={questions.filter((item) => !item.currentValue).map((item) => item.question)}
+                onSelectResume={setSelectedResumeId}
                 onRefresh={() => void refreshScan(profile, true)}
                 onFill={(ids) => void handleFill(ids)}
                 onRejectAi={() =>
@@ -653,6 +760,11 @@ export function App() {
               onToggleDetails={() => setDetailsOpen((value) => !value)}
               onAnalyze={() => void handleAnalyze()}
               onSaveJob={() => void handleSaveJob()}
+              selectedResumeName={resumes.find((item) => item.id === selectedResumeId)?.name}
+              onTailorResume={() => {
+                setTab("resumes");
+                void handleTailor();
+              }}
               onMarkApplied={() => void handleMarkApplied()}
               onGenerate={(question, tone, length) => void handleGenerate(question, tone, length)}
               onDraftChange={(id, value) =>
@@ -718,6 +830,110 @@ export function App() {
             />
           ) : null}
 
+          {tab === "resumes" && profile ? (
+            <ResumesPanel
+              resumes={resumes}
+              selectedId={selectedResumeId}
+              tailoring={tailoring}
+              tailoringBusy={tailoringBusy}
+              previewHtml={previewHtml}
+              onSelect={setSelectedResumeId}
+              onCreate={(mode) => {
+                const now = new Date().toISOString();
+                const source = resumes.find((item) => item.id === selectedResumeId) ?? resumes[0];
+                const next: ResumeVersion = {
+                  id: createId(),
+                  name:
+                    mode === "job"
+                      ? `${job?.title || "Job"} resume`
+                      : mode === "duplicate"
+                        ? `${source?.name || "Resume"} copy`
+                        : "Master Resume",
+                  focusAreas: job?.title ? [job.title] : source?.focusAreas,
+                  content: source?.content ?? contentFromProfile(profile),
+                  sourceProfileVersion: profile.metadata.version ?? 1,
+                  createdAt: now,
+                  updatedAt: now
+                };
+                void saveResumeVersion(next);
+                if (mode === "job") void handleTailor();
+              }}
+              onDuplicate={(id) => {
+                const source = resumes.find((item) => item.id === id);
+                if (!source) return;
+                const now = new Date().toISOString();
+                void saveResumeVersion({
+                  ...source,
+                  id: createId(),
+                  name: `${source.name} copy`,
+                  isPrimary: false,
+                  createdAt: now,
+                  updatedAt: now
+                });
+              }}
+              onRestore={async (resumeId) => {
+                const history = await resumeRepository.listRevisions(resumeId);
+                const previous = history[1] ?? history[0];
+                const current = resumes.find((item) => item.id === resumeId);
+                if (!previous || !current) return;
+                await saveResumeVersion({
+                  ...current,
+                  content: previous.content,
+                  updatedAt: new Date().toISOString()
+                });
+              }}
+              onToggleChange={(id, accepted) =>
+                setTailoring((current) =>
+                  current
+                    ? {
+                        ...current,
+                        changes: current.changes.map((change) =>
+                          change.id === id ? { ...change, accepted } : change
+                        )
+                      }
+                    : current
+                )
+              }
+              onApplyTailoring={() => {
+                const current = resumes.find((item) => item.id === selectedResumeId);
+                if (!current || !tailoring) return;
+                const content = applyAcceptedChanges(current.content, tailoring.changes);
+                void saveResumeVersion({
+                  ...current,
+                  content,
+                  updatedAt: new Date().toISOString()
+                });
+                setTailoring(null);
+              }}
+              onExportPdf={() => {
+                if (!profile) return;
+                const current = resumes.find((item) => item.id === selectedResumeId);
+                if (!current) return;
+                downloadBytes(
+                  `${current.name.replace(/\s+/g, "-")}.pdf`,
+                  resumeToPdfBytes(profile, current),
+                  "application/pdf"
+                );
+              }}
+              onExportDocx={() => {
+                if (!profile) return;
+                const current = resumes.find((item) => item.id === selectedResumeId);
+                if (!current) return;
+                downloadBytes(
+                  `${current.name.replace(/\s+/g, "-")}.docx`,
+                  resumeToDocxBytes(profile, current),
+                  "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                );
+              }}
+              onPreview={() => {
+                if (!profile) return;
+                const current = resumes.find((item) => item.id === selectedResumeId);
+                if (!current) return;
+                setPreviewHtml(resumeToHtml(profile, current));
+              }}
+            />
+          ) : null}
+
           {tab === "apps" ? (
             <ApplicationsPanel
               applications={applications}
@@ -749,6 +965,45 @@ export function App() {
           {tab === "settings" ? (
             <AiSettingsPanel
               settings={settings}
+              cacheCount={cacheCount}
+              onExportBackup={() => {
+                void exportBackup().then((backup) =>
+                  downloadJson(`job-copilot-backup-${backup.exportedAt.slice(0, 10)}.json`, backup)
+                );
+              }}
+              onImportBackup={(file) => {
+                void file.text().then(async (text) => {
+                  try {
+                    const backup = parseBackup(JSON.parse(text) as unknown);
+                    const conflicts = await findConflicts(backup);
+                    if (conflicts.length) {
+                      const useImported = window.confirm(
+                        `${conflicts.length} conflict(s) found. OK = use imported, Cancel = keep existing.`
+                      );
+                      await importBackup(backup, useImported ? "imported" : "keep");
+                    } else {
+                      await importBackup(backup, "keep");
+                    }
+                    await loadProfile();
+                  } catch (err) {
+                    setError(toUserMessage(err));
+                  }
+                });
+              }}
+              onClearCache={() => {
+                void aiCacheRepository.clear().then(async () => {
+                  setCacheCount(await aiCacheRepository.count());
+                });
+              }}
+              onDeleteAll={() => {
+                void deleteAllLocalData().then(() => {
+                  setProfile(null);
+                  setKnowledge([]);
+                  setApplications([]);
+                  setResumes([]);
+                  setTab("profile");
+                });
+              }}
               onSaved={(next) => {
                 setSettings(next);
                 setOllamaReady(Boolean(next.model));

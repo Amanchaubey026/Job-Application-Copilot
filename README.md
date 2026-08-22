@@ -1,6 +1,6 @@
 # Job Application Copilot
 
-Local-first Chrome extension that turns a resume into a structured profile, fills job application forms, and optionally uses a local Ollama model for ambiguous fields, job analysis, and application answers.
+Local-first Chrome extension that turns a resume into a structured profile, fills job application forms, and optionally uses a local Ollama model for ambiguous fields, job analysis, grounded answers, job-specific resume versions, and application tracking.
 
 The extension never submits an application. Ollama is optional: if it is offline, Phase 1 autofill still works.
 
@@ -163,9 +163,21 @@ The profile remains the source of truth. Knowledge items are a search index. Emb
 - Ollama quality depends on the local model you install.
 - PDF.js needs `assets/pdf.worker.min.mjs` (copied on `npm install`).
 
-## Phase 4 (not implemented)
+## Phase 4 extras
+
+- Multiple resume versions (master vs presentation), duplication, restore-from-history
+- Job-specific tailoring suggestions with per-change Accept/Reject (never invents skills)
+- Resume preview plus PDF and DOCX export
+- Multi-step application detection, required-field completeness, pre-submit checklist
+- Optional site adapters (Greenhouse, Lever, Workday, Ashby) with generic fallback
+- Local backup export/import, AI cache clear, delete-all-data
+- Application analytics (historical rates only)
+
+Resume file inputs cannot be filled by the extension (browser security). Export the selected version, then upload it manually.
+
+## Phase 5 (not implemented)
 
 - Cover letter drafts
-- Multiple resume versions
-- Iframe / ATS-specific adapters
+- Follow-up reminder notifications
+- Iframe / ATS-specific fill beyond detection
 - Richer local embeddings UI / batch import of large archives

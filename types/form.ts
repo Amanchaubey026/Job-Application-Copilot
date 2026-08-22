@@ -27,6 +27,7 @@ export interface PageContext {
   url: string;
   looksLikeJobApplication: boolean;
   signals: string[];
+  hostname?: string;
 }
 
 export interface FillFieldRequest {

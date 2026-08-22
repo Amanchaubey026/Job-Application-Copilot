@@ -17,10 +17,12 @@ export function getPageContext(doc: Document = document): PageContext {
   const title = doc.title ?? "";
   const snippet = `${title} ${doc.body?.innerText?.slice(0, 4000) ?? ""}`.toLowerCase();
   const signals = SIGNALS.filter((signal) => snippet.includes(signal));
+  const url = typeof location !== "undefined" ? location.href : "";
   return {
     title,
-    url: typeof location !== "undefined" ? location.href : "",
+    url,
     looksLikeJobApplication: signals.length >= 2,
-    signals
+    signals,
+    hostname: typeof location !== "undefined" ? location.hostname : undefined
   };
 }

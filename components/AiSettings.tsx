@@ -7,10 +7,23 @@ import { settingsRepository } from "~storage/settings-repository";
 
 type Props = {
   settings: AiSettings;
+  cacheCount?: number;
   onSaved: (settings: AiSettings) => void;
+  onExportBackup?: () => void;
+  onImportBackup?: (file: File) => void;
+  onClearCache?: () => void;
+  onDeleteAll?: () => void;
 };
 
-export function AiSettingsPanel({ settings, onSaved }: Props) {
+export function AiSettingsPanel({
+  settings,
+  cacheCount = 0,
+  onSaved,
+  onExportBackup,
+  onImportBackup,
+  onClearCache,
+  onDeleteAll
+}: Props) {
   const [url, setUrl] = useState(settings.ollamaUrl);
   const [model, setModel] = useState(settings.model);
   const [embeddingModel, setEmbeddingModel] = useState(settings.embeddingModel);
@@ -20,6 +33,8 @@ export function AiSettingsPanel({ settings, onSaved }: Props) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [advanced, setAdvanced] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     setUrl(settings.ollamaUrl);
@@ -157,6 +172,70 @@ export function AiSettingsPanel({ settings, onSaved }: Props) {
         <button className="btn btn-primary" type="button" disabled={busy} onClick={() => void save()}>
           Save
         </button>
+      </div>
+      <button className="btn btn-ghost" type="button" onClick={() => setAdvanced((value) => !value)}>
+        {advanced ? "Hide advanced" : "Advanced"}
+      </button>
+      {advanced ? (
+        <div className="card">
+          <p className="tiny">Max context and style are stored locally and sent only to your Ollama server.</p>
+        </div>
+      ) : null}
+      <div className="card">
+        <h2 className="section-title">Privacy</h2>
+        <p>Storage: local only</p>
+        <p>AI: Ollama on this computer</p>
+        <p>Cloud sync: disabled</p>
+        <p>Telemetry: disabled</p>
+        <p>External APIs: none</p>
+      </div>
+      <div className="card">
+        <h2 className="section-title">Backup</h2>
+        <div className="btn-row">
+          <button className="btn btn-secondary" type="button" onClick={onExportBackup}>
+            Export Backup
+          </button>
+          <label className="btn btn-secondary">
+            Import Backup
+            <input
+              className="file-input"
+              type="file"
+              accept="application/json"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) onImportBackup?.(file);
+              }}
+            />
+          </label>
+        </div>
+        <p className="tiny">Import merges local data. Conflicts keep existing records unless you choose otherwise in a follow-up prompt.</p>
+      </div>
+      <div className="card">
+        <h2 className="section-title">AI Cache</h2>
+        <p className="muted">{cacheCount} cached responses</p>
+        <button className="btn btn-secondary" type="button" onClick={onClearCache}>
+          Clear AI Cache
+        </button>
+      </div>
+      <div className="card">
+        <h2 className="section-title">Delete all local data</h2>
+        {confirmDelete ? (
+          <div>
+            <p className="muted">This permanently deletes profile, knowledge, resumes, applications, answers, and cache.</p>
+            <div className="btn-row">
+              <button className="btn btn-secondary" type="button" onClick={() => setConfirmDelete(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-danger" type="button" onClick={onDeleteAll}>
+                Delete Everything
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button className="btn btn-danger" type="button" onClick={() => setConfirmDelete(true)}>
+            Delete All Local Data
+          </button>
+        )}
       </div>
     </div>
   );

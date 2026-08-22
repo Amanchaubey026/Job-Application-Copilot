@@ -25,6 +25,8 @@ export interface AiSettings {
   embeddingModel: string;
   temperature: number;
   timeoutMs: number;
+  maxContext?: number;
+  responseStyle?: "professional" | "conversational" | "concise";
 }
 
 export interface AIFieldClassification {
@@ -69,4 +71,4 @@ export interface JobAnalysis {
 export const DEFAULT_OLLAMA_URL = "http://localhost:11434";
 export const DEFAULT_TEMPERATURE = 0.2;
 export const DEFAULT_AI_TIMEOUT_MS = 60_000;
-export const PROMPT_VERSION = "3.0.0";
+export const PROMPT_VERSION = "4.0.0";

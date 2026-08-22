@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { shouldAutoselect } from "~matching";
 import type { MatchedField } from "~types/matching";
 import { confidenceBand } from "~types/matching";
+import type { ApplicationCompleteness, ApplicationStep } from "~types/application";
 import type { PageContext } from "~types/form";
+import type { ResumeVersion } from "~types/resume";
 import { displayNameFromPath } from "~utils/profile-path";
 
 type Props = {
@@ -13,9 +15,15 @@ type Props = {
   filling: boolean;
   classifying?: boolean;
   fillMessage: string | null;
+  resumes?: ResumeVersion[];
+  selectedResumeId?: string;
+  steps?: ApplicationStep[];
+  completeness?: ApplicationCompleteness | null;
+  unanswered?: string[];
   onRefresh: () => void;
   onFill: (fieldIds: string[]) => void;
   onRejectAi?: () => void;
+  onSelectResume?: (id: string) => void;
 };
 
 function fieldLabel(item: MatchedField): string {
@@ -37,9 +45,15 @@ export function FillPanel({
   filling,
   classifying,
   fillMessage,
+  resumes,
+  selectedResumeId,
+  steps,
+  completeness,
+  unanswered,
   onRefresh,
   onFill,
-  onRejectAi
+  onRejectAi,
+  onSelectResume
 }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -83,6 +97,43 @@ export function FillPanel({
           {matches.length} field{matches.length === 1 ? "" : "s"} detected
           {page?.looksLikeJobApplication ? " · looks like a job application" : ""}
         </div>
+        {resumes?.length ? (
+          <div className="field" style={{ marginTop: 8 }}>
+            <label htmlFor="resume-select">Resume</label>
+            <select
+              id="resume-select"
+              value={selectedResumeId ?? ""}
+              onChange={(event) => onSelectResume?.(event.target.value)}
+            >
+              {resumes.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+            <p className="tiny">
+              Resume file inputs cannot be set automatically. Export the selected resume, then upload it on the page.
+            </p>
+          </div>
+        ) : null}
+        {completeness ? (
+          <div className="status-bar">
+            Application completeness {completeness.percentage}% · {completeness.completedRequired}/
+            {completeness.totalRequired} required fields complete
+          </div>
+        ) : null}
+        {steps?.length ? (
+          <ul className="found-list">
+            {steps.map((step) => (
+              <li key={step.id}>
+                {step.status === "completed" ? "✓" : step.status === "current" ? "→" : "○"} {step.title}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {unanswered?.length ? (
+          <p className="tiny">⚠ {unanswered.length} unanswered question{unanswered.length === 1 ? "" : "s"}</p>
+        ) : null}
       </div>
 
       {matches.length === 0 ? (

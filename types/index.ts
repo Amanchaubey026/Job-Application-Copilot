@@ -7,3 +7,4 @@ export * from "./knowledge";
 export * from "./matching";
 export * from "./messages";
 export * from "./profile";
+export * from "./resume";

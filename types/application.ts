@@ -48,14 +48,53 @@ export interface ApplicationAnswer {
   updatedAt: string;
 }
 
+export interface FollowUp {
+  id: string;
+  applicationId: string;
+  dueAt: string;
+  note: string;
+  completed: boolean;
+}
+
+export interface ApplicationStep {
+  id: string;
+  index: number;
+  title?: string;
+  status: "current" | "completed" | "upcoming" | "unknown";
+}
+
+export interface ApplicationCompleteness {
+  totalRequired: number;
+  completedRequired: number;
+  missingRequired: number;
+  percentage: number;
+}
+
+export interface ApplicationSnapshot {
+  id: string;
+  applicationId: string;
+  url: string;
+  capturedAt: string;
+  step?: ApplicationStep;
+  detectedFieldIds: string[];
+  completedFields: string[];
+  unansweredQuestions: string[];
+  selectedResumeId?: string;
+}
+
 export interface JobApplication {
   id: string;
   job: JobContext;
   appliedAt?: string;
   status: ApplicationStatus;
   notes?: string;
+  recruiter?: string;
   match?: JobMatch;
   answers?: ApplicationAnswer[];
+  selectedResumeId?: string;
+  steps?: ApplicationStep[];
+  completeness?: ApplicationCompleteness;
+  followUps?: FollowUp[];
   createdAt: string;
   updatedAt: string;
 }
@@ -66,6 +105,9 @@ export interface AnswerLibraryItem {
   question: string;
   answer: string;
   sourceIds: string[];
+  usedCount?: number;
+  usefulVotes?: number;
+  notUsefulVotes?: number;
   createdAt: string;
   updatedAt: string;
 }

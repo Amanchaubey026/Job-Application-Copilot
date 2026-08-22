@@ -1,3 +1,4 @@
+import type { ApplicationCompleteness, ApplicationStep } from "./application";
 import type { FillFieldRequest, FillFieldResult, PageContext, SerializableFormField } from "./form";
 import type { ApplicationQuestion, JobContext } from "./job";
 import type { UserProfile } from "./profile";
@@ -21,6 +22,9 @@ export type ScanFormResponse =
       page: PageContext;
       job: JobContext;
       questions: ApplicationQuestion[];
+      steps: ApplicationStep[];
+      completeness: ApplicationCompleteness;
+      adapterId: string;
     }
   | { ok: false; error: string };
 

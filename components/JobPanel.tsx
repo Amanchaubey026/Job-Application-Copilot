@@ -22,6 +22,8 @@ type Props = {
   generatingId: string | null;
   ollamaReady: boolean;
   saved: boolean;
+  selectedResumeName?: string;
+  onTailorResume?: () => void;
   questionState: Record<string, QuestionState>;
   detailsOpen: boolean;
   onToggleDetails: () => void;
@@ -43,6 +45,8 @@ export function JobPanel({
   generatingId,
   ollamaReady,
   saved,
+  selectedResumeName,
+  onTailorResume,
   questionState,
   detailsOpen,
   onToggleDetails,
@@ -91,7 +95,11 @@ export function JobPanel({
         <button className="btn btn-secondary" type="button" disabled={!saved} onClick={onMarkApplied}>
           Mark as Applied
         </button>
+        <button className="btn btn-secondary" type="button" disabled={!job || !onTailorResume} onClick={onTailorResume}>
+          Create Tailored Resume
+        </button>
       </div>
+      {selectedResumeName ? <p className="tiny">Selected resume: {selectedResumeName}</p> : null}
       {!ollamaReady ? (
         <p className="muted">Start Ollama and select a model in AI Settings to analyze jobs.</p>
       ) : null}

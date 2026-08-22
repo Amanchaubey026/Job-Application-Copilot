@@ -73,3 +73,15 @@ export function parseRagAnswer(value: unknown) {
 export function parseJobRequirements(value: unknown) {
   return jobRequirementsSchema.parse(value);
 }
+
+export const resumeTailoringSchema = z.object({
+  summaryRecommendation: z.string().max(800).optional(),
+  skillsToEmphasize: z.array(z.string().max(80)).max(20),
+  projectsToEmphasize: z.array(z.string().max(120)).max(12),
+  experiencePointsToEmphasize: z.array(z.string().max(240)).max(12),
+  skillsNotFoundInProfile: z.array(z.string().max(80)).max(20)
+});
+
+export function parseResumeTailoring(value: unknown) {
+  return resumeTailoringSchema.parse(value);
+}

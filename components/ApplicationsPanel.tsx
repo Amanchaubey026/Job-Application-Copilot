@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { computeAnalytics } from "~applications/analytics";
 import type { ApplicationStatus, JobApplication } from "~types/application";
 import { TextField } from "./TextField";
 
@@ -38,6 +39,7 @@ export function ApplicationsPanel({ applications, onStatus, onNotes, onDelete }:
     acc[status] = applications.filter((app) => app.status === status).length;
     return acc;
   }, {});
+  const analytics = computeAnalytics(applications);
 
   return (
     <div className="stack">
@@ -46,9 +48,17 @@ export function ApplicationsPanel({ applications, onStatus, onNotes, onDelete }:
         <div className="score">{applications.length}</div>
         <div className="score-caption">Total saved locally</div>
         <p className="muted" style={{ marginTop: 8 }}>
-          {counts.saved ?? 0} saved · {counts.applied ?? 0} applied · {counts.interview ?? 0} interview ·{" "}
-          {counts.rejected ?? 0} rejected · {counts.offer ?? 0} offer
+          {counts.saved ?? 0} saved · {counts.applied ?? 0} applied · {analytics.interviews} interviews ·{" "}
+          {analytics.offers} offers
         </p>
+        <p className="tiny">
+          Interview rate {Math.round(analytics.interviewRate * 100)}% of submitted applications. Historical only — not a hiring probability.
+        </p>
+        {analytics.matchBuckets.map((bucket) => (
+          <div className="tiny" key={bucket.label}>
+            Match {bucket.label}: {bucket.applications} applications, {bucket.interviews} interviews
+          </div>
+        ))}
         <TextField label="Search" value={query} onChange={setQuery} placeholder="Company, role, skill, status" />
       </div>
       {filtered.length === 0 ? (

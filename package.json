@@ -1,7 +1,7 @@
 {
   "name": "job-application-copilot",
   "displayName": "Job Application Copilot",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Local-first resume parser and job application form filler. All profile data stays on your machine.",
   "author": "Job Application Copilot",
   "scripts": {

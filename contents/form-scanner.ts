@@ -1,4 +1,6 @@
 import type { PlasmoCSConfig } from "plasmo";
+import { pickAdapter } from "~adapters/sites";
+import { computeCompleteness } from "~applications/completeness";
 import { detectFormFields, toSerializable } from "~lib/form-detector";
 import { fillFields } from "~lib/form-filler";
 import { extractJobDescription } from "~lib/job-extractor";
@@ -21,13 +23,20 @@ let filling = false;
 let observer: MutationObserver | null = null;
 
 function snapshot() {
-  const fields = detectFormFields(document).map(toSerializable);
+  const page = getPageContext(document);
+  const adapter = pickAdapter(page);
+  const fields = (adapter.detectFields?.(page, document) ?? detectFormFields(document).map(toSerializable));
   const questions = detectApplicationQuestions(fields);
+  const job = adapter.detectJob(page, document) ?? extractJobDescription(document);
+  const steps = adapter.detectApplicationSteps(page, document);
   return {
     fields,
-    page: getPageContext(document),
-    job: extractJobDescription(document),
-    questions
+    page,
+    job,
+    questions,
+    steps,
+    completeness: computeCompleteness(fields),
+    adapterId: adapter.id
   };
 }
 
@@ -37,10 +46,7 @@ const notifyFieldsChanged = debounce(() => {
   void chrome.runtime
     .sendMessage({
       type: "FORM_FIELDS_CHANGED",
-      fields: snap.fields,
-      page: snap.page,
-      job: snap.job,
-      questions: snap.questions
+      ...snap
     })
     .catch(() => undefined);
 }, 400);
