@@ -13,6 +13,8 @@ export interface SerializableFormField {
   required?: boolean;
   currentValue?: string;
   nearbyText?: string;
+  helperText?: string;
+  maxLength?: number;
   disabled?: boolean;
 }
 

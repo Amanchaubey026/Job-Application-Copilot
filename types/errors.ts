@@ -7,7 +7,12 @@ export type AppErrorCode =
   | "MISSING_VALUE"
   | "NO_TAB"
   | "NO_CONTENT_SCRIPT"
-  | "RESTRICTED_PAGE";
+  | "RESTRICTED_PAGE"
+  | "AI_UNAVAILABLE"
+  | "AI_TIMEOUT"
+  | "AI_INVALID"
+  | "AI_NO_MODEL"
+  | "AI_MODEL_UNAVAILABLE";
 
 export const ERROR_MESSAGES: Record<AppErrorCode, string> = {
   UNSUPPORTED_FILE: "Unsupported file type. Please upload PDF or DOCX.",
@@ -21,7 +26,15 @@ export const ERROR_MESSAGES: Record<AppErrorCode, string> = {
   NO_CONTENT_SCRIPT:
     "This page hasn't loaded the extension yet. Refresh the page and try again.",
   RESTRICTED_PAGE:
-    "This page can't be scanned. Open a job application on http(s) and try again."
+    "This page can't be scanned. Open a job application on http(s) and try again.",
+  AI_UNAVAILABLE:
+    "Ollama is unavailable. Start Ollama to enable AI features. Basic autofill remains available.",
+  AI_TIMEOUT:
+    "AI request timed out. The model may be busy or too large.",
+  AI_INVALID: "AI returned an invalid response.",
+  AI_NO_MODEL: "No Ollama models found. Install a model using Ollama first.",
+  AI_MODEL_UNAVAILABLE:
+    "The selected model is not available. Choose another model in AI Settings."
 };
 
 export class AppError extends Error {

@@ -1,7 +1,9 @@
 import type { PlasmoCSConfig } from "plasmo";
 import { detectFormFields, toSerializable } from "~lib/form-detector";
 import { fillFields } from "~lib/form-filler";
+import { extractJobDescription } from "~lib/job-extractor";
 import { getPageContext } from "~lib/page-context";
+import { detectApplicationQuestions } from "~lib/question-detector";
 import { debounce } from "~utils/debounce";
 import {
   isExtensionMessage,
@@ -18,22 +20,29 @@ export const config: PlasmoCSConfig = {
 let filling = false;
 let observer: MutationObserver | null = null;
 
-function scan() {
+function snapshot() {
   const fields = detectFormFields(document).map(toSerializable);
+  const questions = detectApplicationQuestions(fields);
   return {
-    ok: true as const,
     fields,
-    page: getPageContext(document)
+    page: getPageContext(document),
+    job: extractJobDescription(document),
+    questions
   };
 }
 
 const notifyFieldsChanged = debounce(() => {
   if (filling) return;
-  void chrome.runtime.sendMessage({
-    type: "FORM_FIELDS_CHANGED",
-    fields: detectFormFields(document).map(toSerializable),
-    page: getPageContext(document)
-  }).catch(() => undefined);
+  const snap = snapshot();
+  void chrome.runtime
+    .sendMessage({
+      type: "FORM_FIELDS_CHANGED",
+      fields: snap.fields,
+      page: snap.page,
+      job: snap.job,
+      questions: snap.questions
+    })
+    .catch(() => undefined);
 }, 400);
 
 function ensureObserver(): void {
@@ -44,8 +53,8 @@ function ensureObserver(): void {
       Array.from(mutation.addedNodes).some((node) => {
         if (!(node instanceof HTMLElement)) return false;
         return (
-          node.matches("input, textarea, select, form") ||
-          Boolean(node.querySelector("input, textarea, select"))
+          node.matches("input, textarea, select, form, article, main") ||
+          Boolean(node.querySelector("input, textarea, select, h1"))
         );
       })
     );
@@ -60,13 +69,14 @@ function handleMessage(message: ExtensionMessage): ExtensionResponse {
       return { ok: true };
     case "GET_PAGE_CONTEXT":
       return { ok: true, page: getPageContext(document) };
+    case "GET_JOB_CONTEXT": {
+      ensureObserver();
+      const snap = snapshot();
+      return { ok: true, job: snap.job, questions: snap.questions };
+    }
     case "SCAN_FORM": {
       ensureObserver();
-      const result = scan();
-      if (result.fields.length === 0) {
-        return { ok: false, error: "No recognizable form fields found on this page." };
-      }
-      return result;
+      return { ok: true, ...snapshot() };
     }
     case "FILL_FIELDS": {
       filling = true;

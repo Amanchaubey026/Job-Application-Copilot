@@ -11,9 +11,11 @@ type Props = {
   page?: PageContext | null;
   busy: boolean;
   filling: boolean;
+  classifying?: boolean;
   fillMessage: string | null;
   onRefresh: () => void;
   onFill: (fieldIds: string[]) => void;
+  onRejectAi?: () => void;
 };
 
 function fieldLabel(item: MatchedField): string {
@@ -33,9 +35,11 @@ export function FillPanel({
   page,
   busy,
   filling,
+  classifying,
   fillMessage,
   onRefresh,
-  onFill
+  onFill,
+  onRejectAi
 }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -101,13 +105,16 @@ export function FillPanel({
                 <div>
                   <div className="meta">
                     <strong>{fieldLabel(item)}</strong>
-                    {match && hasValue ? (
-                      <span className={`badge badge-${band}`}>{band}</span>
-                    ) : match ? (
-                      <span className="badge badge-missing">Missing</span>
-                    ) : (
-                      <span className="badge badge-low">Unmatched</span>
-                    )}
+                    <span style={{ display: "flex", gap: 4 }}>
+                      {match?.source === "ai" ? <span className="badge badge-ai">AI</span> : null}
+                      {match && hasValue ? (
+                        <span className={`badge badge-${band}`}>{band}</span>
+                      ) : match ? (
+                        <span className="badge badge-missing">Missing</span>
+                      ) : (
+                        <span className="badge badge-low">Unmatched</span>
+                      )}
+                    </span>
                   </div>
                   <div className="value">
                     {hasValue
@@ -116,6 +123,9 @@ export function FillPanel({
                         ? "Not available"
                         : "This field could not be matched to your profile."}
                   </div>
+                  {match?.source === "ai" && match.reason ? (
+                    <div className="tiny">{match.reason}</div>
+                  ) : null}
                 </div>
               </label>
             );
@@ -160,8 +170,13 @@ export function FillPanel({
           Select All High Confidence
         </button>
         <button className="btn btn-secondary" type="button" disabled={busy} onClick={onRefresh}>
-          Refresh Detection
+          {classifying ? "Classifying fields…" : "Refresh Detection"}
         </button>
+        {onRejectAi ? (
+          <button className="btn btn-ghost" type="button" onClick={onRejectAi}>
+            Reject AI matches
+          </button>
+        ) : null}
       </div>
     </div>
   );

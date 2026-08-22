@@ -2,6 +2,7 @@ import { AppError } from "~types/errors";
 import type {
   ExtensionMessage,
   FillFieldsResponse,
+  GetJobContextResponse,
   GetPageContextResponse,
   ScanFormResponse
 } from "~types/messages";
@@ -57,5 +58,12 @@ export async function getActivePageContext(): Promise<GetPageContextResponse> {
   const tab = await getActiveTab();
   return sendToTab<GetPageContextResponse>(tab.id as number, {
     type: "GET_PAGE_CONTEXT"
+  });
+}
+
+export async function getActiveJobContext(): Promise<GetJobContextResponse> {
+  const tab = await getActiveTab();
+  return sendToTab<GetJobContextResponse>(tab.id as number, {
+    type: "GET_JOB_CONTEXT"
   });
 }

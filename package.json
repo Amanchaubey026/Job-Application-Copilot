@@ -1,7 +1,7 @@
 {
   "name": "job-application-copilot",
   "displayName": "Job Application Copilot",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Local-first resume parser and job application form filler. All profile data stays on your machine.",
   "author": "Job Application Copilot",
   "scripts": {
@@ -18,7 +18,8 @@
     "pdfjs-dist": "4.10.38",
     "plasmo": "^0.90.5",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/chrome": "0.0.287",
@@ -32,12 +33,22 @@
   },
   "manifest": {
     "name": "Job Application Copilot",
-    "permissions": ["activeTab"],
-    "host_permissions": ["http://*/*", "https://*/*"],
+    "permissions": [
+      "activeTab"
+    ],
+    "host_permissions": [
+      "http://*/*",
+      "https://*/*"
+    ],
     "web_accessible_resources": [
       {
-        "resources": ["pdf.worker.min.mjs"],
-        "matches": ["http://*/*", "https://*/*"]
+        "resources": [
+          "pdf.worker.min.mjs"
+        ],
+        "matches": [
+          "http://*/*",
+          "https://*/*"
+        ]
       }
     ]
   }

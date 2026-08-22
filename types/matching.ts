@@ -1,11 +1,15 @@
 import type { SerializableFormField } from "./form";
 import type { UserProfile } from "./profile";
 
+export type MatchSource = "deterministic" | "ai";
+
 export interface FieldMatch {
   profilePath: string;
   value: string;
   confidence: number;
   reason: string;
+  source?: MatchSource;
+  profileSources?: string[];
 }
 
 export interface FieldMatcher {

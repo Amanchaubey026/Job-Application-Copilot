@@ -116,7 +116,8 @@ function matchFieldSync(
       profilePath: rule.profilePath,
       value: getProfileValue(profile, rule.profilePath) ?? "",
       confidence: scored.confidence,
-      reason: scored.reason
+      reason: scored.reason,
+      source: "deterministic"
     };
   }
 

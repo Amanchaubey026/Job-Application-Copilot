@@ -386,3 +386,50 @@ select:focus-visible {
   padding: 24px 8px;
   color: var(--muted);
 }
+
+.badge-ai {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.dot-on {
+  background: var(--success);
+}
+
+.dot-off {
+  background: #b0b0b0;
+}
+
+.score {
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+}
+
+.score-caption {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.answer-box {
+  width: 100%;
+  min-height: 120px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.tiny {
+  font-size: 11px;
+  color: var(--muted);
+}

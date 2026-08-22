@@ -1,9 +1,23 @@
 export const DB_NAME = "job-application-copilot";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 export const PROFILE_STORE = "profiles";
+export const SETTINGS_STORE = "settings";
+export const AI_CACHE_STORE = "ai-cache";
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 let dbInstance: IDBDatabase | null = null;
+
+function ensureStores(db: IDBDatabase): void {
+  if (!db.objectStoreNames.contains(PROFILE_STORE)) {
+    db.createObjectStore(PROFILE_STORE, { keyPath: "id" });
+  }
+  if (!db.objectStoreNames.contains(SETTINGS_STORE)) {
+    db.createObjectStore(SETTINGS_STORE, { keyPath: "id" });
+  }
+  if (!db.objectStoreNames.contains(AI_CACHE_STORE)) {
+    db.createObjectStore(AI_CACHE_STORE, { keyPath: "key" });
+  }
+}
 
 export function openDatabase(): Promise<IDBDatabase> {
   if (typeof indexedDB === "undefined") {
@@ -15,10 +29,7 @@ export function openDatabase(): Promise<IDBDatabase> {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
 
       request.onupgradeneeded = () => {
-        const db = request.result;
-        if (!db.objectStoreNames.contains(PROFILE_STORE)) {
-          db.createObjectStore(PROFILE_STORE, { keyPath: "id" });
-        }
+        ensureStores(request.result);
       };
 
       request.onsuccess = () => {
@@ -53,4 +64,23 @@ export function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
     request.onerror = () =>
       reject(request.error ?? new Error("IndexedDB request failed."));
   });
+}
+
+export function withStore<T>(
+  storeName: string,
+  mode: IDBTransactionMode,
+  run: (store: IDBObjectStore) => IDBRequest<T>
+): Promise<T> {
+  return openDatabase().then(
+    (db) =>
+      new Promise<T>((resolve, reject) => {
+        const tx = db.transaction(storeName, mode);
+        const request = run(tx.objectStore(storeName));
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () =>
+          reject(request.error ?? new Error("IndexedDB request failed."));
+        tx.onerror = () =>
+          reject(tx.error ?? new Error("IndexedDB transaction failed."));
+      })
+  );
 }

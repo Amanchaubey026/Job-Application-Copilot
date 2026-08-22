@@ -84,6 +84,36 @@ function labelledBy(el: HTMLElement): string | undefined {
   return parts.join(" ") || undefined;
 }
 
+function helperText(el: HTMLElement): string | undefined {
+  const described = el.getAttribute("aria-describedby");
+  if (described) {
+    const parts = described
+      .split(/\s+/)
+      .map((id) => collapse(el.ownerDocument.getElementById(id)?.textContent))
+      .filter((value): value is string => Boolean(value));
+    if (parts.length) return parts.join(" ");
+  }
+  const next = el.nextElementSibling;
+  if (next && /hint|help|counter|limit|description/i.test(next.className + next.id)) {
+    return collapse(next.textContent);
+  }
+  return undefined;
+}
+
+function detectMaxLength(el: HTMLElement, label?: string, nearby?: string, helper?: string): number | undefined {
+  if (
+    (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) &&
+    el.maxLength > 0 &&
+    el.maxLength < 100000
+  ) {
+    return el.maxLength;
+  }
+  const blob = `${label ?? ""} ${nearby ?? ""} ${helper ?? ""}`;
+  const match = blob.match(/(\d{2,5})\s*(?:characters?|chars?)/i);
+  if (match?.[1]) return Number(match[1]);
+  return undefined;
+}
+
 function nearbyText(el: HTMLElement): string | undefined {
   const prev = el.previousElementSibling;
   if (prev && !isFormControl(prev)) {
@@ -149,6 +179,8 @@ export function detectFormFields(
       wrappingLabel(el) ??
       labelledBy(el) ??
       collapse(el.getAttribute("aria-label"));
+    const nearby = nearbyText(el);
+    const helper = helperText(el);
 
     const field: DetectedFormField = {
       id: "",
@@ -162,7 +194,9 @@ export function detectFormFields(
       autocomplete: el.getAttribute("autocomplete") || undefined,
       required: el.required || el.getAttribute("aria-required") === "true",
       currentValue: currentValueOf(el),
-      nearbyText: nearbyText(el),
+      nearbyText: nearby,
+      helperText: helper,
+      maxLength: detectMaxLength(el, label, nearby, helper),
       disabled: el.disabled,
       element: el
     };
