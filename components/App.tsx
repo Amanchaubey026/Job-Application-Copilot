@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { tryCreateOllamaProvider } from "~ai/ollama-provider";
+import { resolveOllamaConnection } from "~ai/ollama-status";
 import { createOrchestrator } from "~ai/orchestrator";
 import { analyzeJobMatch, generateAnswerWithAi, retrieveEvidence } from "~ai/services";
-import { fillActiveTab, scanActiveTab } from "~lib/extension-client";
+import { fillActiveTab, openCopilotDrawer, scanActiveTab } from "~lib/extension-client";
+import { resolveFillValue } from "~copilot/fill-value";
 import { jobIdentity } from "~lib/job-extractor";
 import { matchFieldsPhase2 } from "~matching/pipeline";
 import { shouldAutoselect } from "~matching";
@@ -137,16 +139,14 @@ export function App() {
     }
     setApplications(await applicationRepository.list().catch(() => []));
     setCacheCount(await aiCacheRepository.count().catch(() => 0));
-    if (storedSettings.model) {
-      try {
-        const client = tryCreateOllamaProvider(
-          storedSettings.ollamaUrl,
-          storedSettings.timeoutMs
-        );
-        setOllamaReady(client ? await client.isAvailable() : false);
-      } catch {
-        setOllamaReady(false);
+    try {
+      const ollama = await resolveOllamaConnection(storedSettings);
+      setOllamaReady(ollama.ready);
+      if (ollama.model && ollama.model !== storedSettings.model) {
+        setSettings({ ...storedSettings, model: ollama.model, ollamaUrl: ollama.url });
       }
+    } catch {
+      setOllamaReady(false);
     }
     setPhase("ready");
     setTab(stored ? "apply" : "profile");
@@ -355,11 +355,12 @@ export function App() {
 
   async function applyFill(matched: MatchedField[], fieldIds: string[]) {
     const fields = matched
-      .filter((item) => fieldIds.includes(item.field.id) && item.match?.value.trim())
+      .filter((item) => fieldIds.includes(item.field.id))
       .map((item) => ({
         fieldId: item.field.id,
-        value: item.match?.value ?? ""
-      }));
+        value: profile ? resolveFillValue(item.field, item.match, profile) ?? "" : item.match?.value ?? ""
+      }))
+      .filter((item) => item.value.trim());
     if (fields.length === 0) {
       setFillMessage("No ready fields to fill on this page. Review your profile or the Apply tab.");
       return;
@@ -400,19 +401,17 @@ export function App() {
     setError(null);
     setScanError(null);
     try {
-      const matched = await refreshScan(profile, true);
-      const ids = matched
-        .filter((item) => shouldAutoselect(item.match))
-        .map((item) => item.field.id);
-      if (ids.length === 0) {
-        setFillMessage(
-          matched.length
-            ? "Fields were found, but none were high-confidence matches. Review them on the Apply tab."
-            : "No form fields found on this page. Open a job application, then try again."
-        );
+      await refreshScan(profile, true);
+      const opened = await openCopilotDrawer();
+      if (!opened) {
+        setError("Refresh the job page, then try again. Copilot runs in a drawer on the right of the page.");
         return;
       }
-      await applyFill(matched, ids);
+      setFillMessage(
+        ollamaReady
+          ? "Copilot is open on the right of the page. It fills safe fields, then Ollama asks you about the rest."
+          : "Copilot is open on the right of the page. Connect Ollama in the AI tab so it can ask you about salary, work authorization, and other questions."
+      );
     } catch (err) {
       setError(toUserMessage(err));
     } finally {
@@ -766,6 +765,7 @@ export function App() {
               classifying={classifying}
               pageHost={page?.hostname}
               scanError={scanError}
+              ollamaReady={ollamaReady && Boolean(settings.model)}
               onFillPage={() => void handleFillPage()}
               onScan={() => void refreshScan(profile, true)}
             />
@@ -1062,13 +1062,14 @@ export function App() {
               }}
               onSaved={(next) => {
                 setSettings(next);
-                setOllamaReady(Boolean(next.model));
-                const client = tryCreateOllamaProvider(next.ollamaUrl, next.timeoutMs);
-                if (!client) {
-                  setOllamaReady(false);
-                  return;
-                }
-                void client.isAvailable().then(setOllamaReady).catch(() => setOllamaReady(false));
+                void resolveOllamaConnection(next)
+                  .then((ollama) => {
+                    setOllamaReady(ollama.ready);
+                    if (ollama.url !== next.ollamaUrl) {
+                      setSettings({ ...next, ollamaUrl: ollama.url });
+                    }
+                  })
+                  .catch(() => setOllamaReady(false));
               }}
             />
           ) : null}

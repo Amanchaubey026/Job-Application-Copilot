@@ -3,6 +3,8 @@ import type { SerializableFormField } from "~types/form";
 import type { UserProfile } from "~types/profile";
 import { containsPhrase, expandTerm, normalizeAutocomplete, normalizeText } from "~utils/normalize";
 import { getProfileValue } from "~utils/profile-path";
+import { inferCountryName } from "~lib/country";
+import { normalizeGitHubUrl, normalizeLinkedInUrl } from "~lib/links";
 import { CONFIDENCE, MATCH_RULES, type MatchRule } from "./rules";
 
 interface FieldSignals {
@@ -112,9 +114,24 @@ function matchFieldSync(
     if (best && scored.confidence === best.confidence && rule.profilePath.length <= best.profilePath.length) {
       continue;
     }
+    let value = getProfileValue(profile, rule.profilePath) ?? "";
+    if (rule.profilePath === "links.linkedin") {
+      value = normalizeLinkedInUrl(value) ?? "";
+    } else if (rule.profilePath === "links.github") {
+      value = normalizeGitHubUrl(value) ?? "";
+    } else if (rule.profilePath === "personal.address.country") {
+      value =
+        inferCountryName({
+          country: profile.personal.address?.country,
+          location: profile.personal.location,
+          city: profile.personal.address?.city,
+          state: profile.personal.address?.state,
+          phone: profile.personal.phone
+        }) ?? value;
+    }
     best = {
       profilePath: rule.profilePath,
-      value: getProfileValue(profile, rule.profilePath) ?? "",
+      value,
       confidence: scored.confidence,
       reason: scored.reason,
       source: "deterministic"

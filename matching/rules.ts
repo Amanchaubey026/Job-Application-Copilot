@@ -36,8 +36,17 @@ export const MATCH_RULES: MatchRule[] = [
   {
     profilePath: "personal.firstName",
     autocomplete: ["given-name", "fname"],
-    exact: ["first name", "firstname", "given name", "fname", "first"],
-    synonyms: ["first name", "given name", "fname"],
+    exact: [
+      "first name",
+      "firstname",
+      "given name",
+      "fname",
+      "first",
+      "preferred first name",
+      "preferred name",
+      "preferred firstname"
+    ],
+    synonyms: ["first name", "given name", "fname", "preferred first name", "preferred name"],
     exclude: ["first name of company"]
   },
   {
@@ -151,16 +160,36 @@ export const MATCH_RULES: MatchRule[] = [
       "position",
       "role",
       "title",
-      "current role"
+      "current role",
+      "occupation title",
+      "designation"
     ],
-    synonyms: ["current job title", "current position", "job title", "position", "current role"],
+    synonyms: [
+      "current job title",
+      "current position",
+      "job title",
+      "position",
+      "current role",
+      "occupation title",
+      "designation"
+    ],
     exclude: ["page title", "resume title"]
   },
   {
     profilePath: "education[0].institution",
     autocomplete: [],
-    exact: ["university", "college", "institution", "school", "university name", "college name"],
-    synonyms: ["university", "college", "institution", "school"],
+    exact: [
+      "university",
+      "college",
+      "institution",
+      "school",
+      "university name",
+      "college name",
+      "institute",
+      "institute name",
+      "institute school"
+    ],
+    synonyms: ["university", "college", "institution", "school", "institute"],
     exclude: ["high school", "school name of children"]
   },
   {
@@ -226,8 +255,8 @@ export const MATCH_RULES: MatchRule[] = [
   {
     profilePath: "skills",
     autocomplete: [],
-    exact: ["skills", "technical skills", "skill set", "skillset"],
-    synonyms: ["technical skills", "skill set"]
+    exact: ["skills", "technical skills", "skill set", "skillset", "search and add skills"],
+    synonyms: ["technical skills", "skill set", "add skills"]
   }
 ];
 

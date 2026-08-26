@@ -1,4 +1,9 @@
-export type FormElementType = "input" | "textarea" | "select";
+export type FormElementType = "input" | "textarea" | "select" | "combobox" | "radio-group";
+
+export interface FieldOption {
+  value: string;
+  label: string;
+}
 
 export interface SerializableFormField {
   id: string;
@@ -16,6 +21,8 @@ export interface SerializableFormField {
   helperText?: string;
   maxLength?: number;
   disabled?: boolean;
+  options?: FieldOption[];
+  role?: string;
 }
 
 export interface DetectedFormField extends SerializableFormField {

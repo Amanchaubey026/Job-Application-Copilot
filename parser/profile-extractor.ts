@@ -10,13 +10,14 @@ import type {
 import { createId } from "~utils/id";
 import { collapseWhitespace, uniqueStrings } from "~utils/normalize";
 import { createEmptyProfile } from "~utils/profile-factory";
+import { normalizeGitHubUrl, normalizeLinkedInUrl } from "~lib/links";
 
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const PHONE_RE =
   /(?:\+\d{1,3}[\s.-]*)?(?:\(?\d{2,5}\)?[\s.-]*){2,4}\d{2,5}/g;
 const URL_RE = /https?:\/\/[^\s)|,]+/gi;
 const BARE_URL_RE =
-  /\b(?:www\.)?[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+(?:\/[^\s)|,]*)?/gi;
+  /\b(?:www\.)?[A-Za-z][A-Za-z0-9-]*(?:\.[A-Za-z0-9-]+)+(?:\/[^\s)|,]*)?/gi;
 const MONTHS =
   "jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?";
 const DATE_CHUNK = `(?:(?:${MONTHS})\\.?\\s+)?(?:(?:19|20)\\d{2}|'\\d{2})`;
@@ -293,19 +294,21 @@ function extractPhones(headerLines: string[]): string[] {
 
 function extractUrls(text: string): string[] {
   const withoutEmails = text.replace(EMAIL_RE, " ");
-  const fromProtocol = Array.from(withoutEmails.matchAll(URL_RE), (match) => match[0].replace(/[.,;]+$/, ""));
+  const cleaned = withoutEmails.replace(PHONE_RE, " ");
+  const fromProtocol = Array.from(cleaned.matchAll(URL_RE), (match) => match[0].replace(/[.,;]+$/, ""));
   const linkedin = Array.from(
-    withoutEmails.matchAll(/\b(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[A-Za-z0-9_-]+\/?/gi),
+    withoutEmails.matchAll(/linkedin\.com\/in\/[A-Za-z0-9_-]+\/?/gi),
     (match) => match[0]
   );
   const github = Array.from(
-    withoutEmails.matchAll(/\b(?:https?:\/\/)?(?:www\.)?github\.com\/[A-Za-z0-9_-]+\/?/gi),
+    withoutEmails.matchAll(/github\.com\/[A-Za-z0-9_-]+\/?/gi),
     (match) => match[0]
   );
-  const bare = Array.from(withoutEmails.matchAll(BARE_URL_RE), (match) => match[0].replace(/[.,;]+$/, "")).filter(
+  const bare = Array.from(cleaned.matchAll(BARE_URL_RE), (match) => match[0].replace(/[.,;]+$/, "")).filter(
     (value) =>
       /\.(com|dev|io|me|co|org|net|in|ai)\b/i.test(value) &&
-      (/www\.|\//.test(value) || /linkedin|github/i.test(value))
+      (/www\.|\//.test(value) || /linkedin|github/i.test(value)) &&
+      !/^\d/.test(value)
   );
   return uniqueStrings([...fromProtocol, ...linkedin, ...github, ...bare]);
 }
@@ -320,13 +323,13 @@ function classifyLinks(urls: string[]): UserProfile["links"] {
   for (const raw of urls) {
     const url = withProtocol(raw.replace(/^www\./i, "www."));
     const lower = url.toLowerCase();
-    if (lower.includes("linkedin.com")) {
-      links.linkedin ??= url;
+    const linkedin = normalizeLinkedInUrl(url);
+    if (linkedin) {
+      links.linkedin ??= linkedin;
     } else if (lower.includes("github.com")) {
-      const path = lower.split("github.com/")[1] ?? "";
-      const slug = path.split("/")[0] ?? "";
-      if (slug && !["features", "topics", "about", "login", "pricing"].includes(slug)) {
-        links.github ??= url;
+      const github = normalizeGitHubUrl(url);
+      if (github) {
+        links.github ??= github;
       }
     } else if (!links.portfolio) {
       links.portfolio = url;

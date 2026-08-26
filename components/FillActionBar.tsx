@@ -6,6 +6,7 @@ type Props = {
   classifying?: boolean;
   pageHost?: string;
   scanError?: string | null;
+  ollamaReady?: boolean;
   onFillPage: () => void;
   onScan: () => void;
 };
@@ -18,6 +19,7 @@ export function FillActionBar({
   classifying,
   pageHost,
   scanError,
+  ollamaReady,
   onFillPage,
   onScan
 }: Props) {
@@ -40,9 +42,15 @@ export function FillActionBar({
         disabled={filling || scanning}
         onClick={onFillPage}
       >
-        {filling ? "Filling this page…" : scanning ? "Scanning page…" : "Fill this page"}
+        {filling ? "Opening copilot…" : scanning ? "Scanning page…" : "Fill with copilot"}
       </button>
-      <p className="fill-cta-hint">{status} The application is never submitted.</p>
+      <p className="fill-cta-hint">
+        {status} Opens a right-hand drawer on the page.
+        {ollamaReady
+          ? " Ollama will ask you about salary, work authorization, and anything else it should not guess."
+          : " Start Ollama locally — the copilot uses any installed model by default."}{" "}
+        The application is never submitted.
+      </p>
       {fieldCount > 0 && readyCount === 0 ? (
         <button className="btn btn-ghost" type="button" disabled={scanning} onClick={onScan}>
           Scan again

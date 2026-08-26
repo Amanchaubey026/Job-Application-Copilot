@@ -69,7 +69,9 @@ function ensureObserver(): void {
   observer.observe(document.body, { childList: true, subtree: true });
 }
 
-function handleMessage(message: ExtensionMessage): ExtensionResponse {
+const TAB_TYPES = new Set(["PING", "GET_PAGE_CONTEXT", "GET_JOB_CONTEXT", "SCAN_FORM", "FILL_FIELDS"]);
+
+async function handleMessage(message: ExtensionMessage): Promise<ExtensionResponse> {
   switch (message.type) {
     case "PING":
       return { ok: true };
@@ -88,14 +90,12 @@ function handleMessage(message: ExtensionMessage): ExtensionResponse {
       filling = true;
       try {
         ensureObserver();
-        const results = fillFields(message.fields, document);
+        const results = await fillFields(message.fields, document);
         return { ok: true, results };
       } finally {
         filling = false;
       }
     }
-    case "GET_PROFILE":
-      return { ok: false, error: "Profile is not available in the page context." };
     default:
       return { ok: false, error: "Unknown message." };
   }
@@ -103,11 +103,12 @@ function handleMessage(message: ExtensionMessage): ExtensionResponse {
 
 chrome.runtime.onMessage.addListener((raw, _sender, sendResponse) => {
   if (!isExtensionMessage(raw)) return;
-  try {
-    sendResponse(handleMessage(raw));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Request failed.";
-    sendResponse({ ok: false, error: message });
-  }
+  if (!TAB_TYPES.has(raw.type)) return;
+  void handleMessage(raw)
+    .then(sendResponse)
+    .catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : "Request failed.";
+      sendResponse({ ok: false, error: message });
+    });
   return true;
 });

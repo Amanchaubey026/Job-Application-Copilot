@@ -43,6 +43,12 @@ export function AiSettingsPanel({
     setTemperature(String(settings.temperature));
   }, [settings]);
 
+  useEffect(() => {
+    void testConnection(settings.ollamaUrl, settings.model);
+    // Probe Ollama once so the default "any local model" option can list what is installed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function testConnection(nextUrl = url, nextModel = model) {
     setBusy(true);
     setError(null);
@@ -70,12 +76,11 @@ export function AiSettingsPanel({
         return;
       }
       if (nextModel && !list.some((item) => item.name === nextModel)) {
-        setModel(list[0]?.name ?? "");
+        setModel("");
       }
-      if (!nextModel && list[0]) {
-        setModel(list[0].name);
-      }
-      setMessage(`Connected. ${list.length} model${list.length === 1 ? "" : "s"} available.`);
+      setMessage(
+        `Connected. ${list.length} local model${list.length === 1 ? "" : "s"} available. Copilot uses one automatically unless you pick a specific model.`
+      );
     } catch (err) {
       setConnected(false);
       setModels([]);
@@ -112,7 +117,8 @@ export function AiSettingsPanel({
       <div className="card">
         <h2 className="section-title">AI Settings</h2>
         <p className="muted">
-          Ollama is optional. If it is offline, deterministic autofill still works.
+          Uses any local Ollama model by default. You only need a model installed
+          (<code>ollama pull qwen3:8b</code>). Pick a specific one here if you want to override.
         </p>
         <TextField label="Ollama URL" value={url} onChange={setUrl} />
         <div className="field">
@@ -123,7 +129,7 @@ export function AiSettingsPanel({
               value={model}
               onChange={(event) => setModel(event.target.value)}
             >
-              <option value="">Select a model</option>
+              <option value="">Any local model (default)</option>
               {models.map((item) => (
                 <option key={item.name} value={item.name}>
                   {item.name}
@@ -134,7 +140,7 @@ export function AiSettingsPanel({
             <input
               id="model"
               value={model}
-              placeholder="Test connection to load models"
+              placeholder="Any local model (default)"
               onChange={(event) => setModel(event.target.value)}
             />
           )}

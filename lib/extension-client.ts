@@ -67,3 +67,13 @@ export async function getActiveJobContext(): Promise<GetJobContextResponse> {
     type: "GET_JOB_CONTEXT"
   });
 }
+
+export async function openCopilotDrawer(): Promise<boolean> {
+  const tab = await getActiveTab();
+  try {
+    const response = await chrome.tabs.sendMessage(tab.id as number, { type: "OPEN_COPILOT" });
+    return Boolean(response?.ok !== false);
+  } catch {
+    return false;
+  }
+}

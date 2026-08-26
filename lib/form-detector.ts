@@ -1,4 +1,10 @@
-import type { DetectedFormField, FormElementType, SerializableFormField } from "~types/form";
+import type {
+  DetectedFormField,
+  FieldOption,
+  FormElementType,
+  SerializableFormField
+} from "~types/form";
+import { optionsFromSelect } from "./select-option";
 
 const SKIP_TYPES = new Set([
   "hidden",
@@ -9,16 +15,13 @@ const SKIP_TYPES = new Set([
   "file",
   "password",
   "checkbox",
-  "radio",
   "color",
   "range",
   "week",
   "month",
   "time",
   "datetime-local",
-  "date",
-  "number",
-  "search"
+  "date"
 ]);
 
 const SKIP_NAME_RE =
@@ -38,21 +41,88 @@ function isFormControl(
   );
 }
 
+function isCombobox(el: HTMLElement): boolean {
+  const role = (el.getAttribute("role") ?? "").toLowerCase();
+  if (role === "combobox") return true;
+  if (el.getAttribute("aria-autocomplete") === "list") return true;
+  if (el.getAttribute("aria-haspopup") === "listbox") return true;
+  const className = `${el.className}`;
+  if (/\bselect__input\b|\bSelect-input\b/i.test(className)) return true;
+  if (el.closest(".select__control, .select__input-container, [class*='react-select']")) return true;
+  return false;
+}
+
 function elementTypeOf(el: HTMLElement): FormElementType | null {
   if (el instanceof HTMLTextAreaElement) return "textarea";
   if (el instanceof HTMLSelectElement) return "select";
-  if (el instanceof HTMLInputElement) return "input";
+  if (el instanceof HTMLInputElement) {
+    if ((el.type || "text").toLowerCase() === "radio") return "radio-group";
+    if (isCombobox(el)) return "combobox";
+    return "input";
+  }
+  if (isCombobox(el)) return "combobox";
   return null;
 }
 
 function shouldSkip(el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement): boolean {
-  if (el instanceof HTMLInputElement && SKIP_TYPES.has((el.type || "text").toLowerCase())) {
-    return true;
+  if (el instanceof HTMLInputElement) {
+    const type = (el.type || "text").toLowerCase();
+    if (type === "radio") return false;
+    if (SKIP_TYPES.has(type) && !isCombobox(el)) return true;
   }
+  if (el instanceof HTMLSelectElement && el.hidden) return true;
   const identity = `${el.name} ${el.id}`;
   if (SKIP_NAME_RE.test(identity)) return true;
   if (el.getAttribute("role") === "presentation") return true;
+  if (el.getAttribute("aria-hidden") === "true" && !isCombobox(el)) return true;
   return false;
+}
+
+function fieldContainerLabel(el: HTMLElement): string | undefined {
+  let node: HTMLElement | null = el.parentElement;
+  for (let depth = 0; depth < 6 && node; depth += 1) {
+    const labeled = node.querySelector(
+      ":scope > label, :scope > legend, :scope > .label, :scope > [class*='label']"
+    );
+    if (labeled && !labeled.contains(el)) {
+      const text = collapse(labeled.textContent)?.replace(/\s+\*$/, "").trim();
+      if (text && text.length < 180) return text;
+    }
+    node = node.parentElement;
+  }
+  return undefined;
+}
+
+function associatedSelect(el: HTMLElement): HTMLSelectElement | null {
+  const root =
+    el.closest(".field, [class*='Field'], form, fieldset") ??
+    el.parentElement?.parentElement ??
+    el.parentElement;
+  if (!root) return null;
+  const select = root.querySelector("select");
+  return select instanceof HTMLSelectElement ? select : null;
+}
+
+function optionsFor(el: HTMLElement, elementType: FormElementType): FieldOption[] | undefined {
+  if (el instanceof HTMLSelectElement) return optionsFromSelect(el);
+  if (elementType === "combobox") {
+    const select = associatedSelect(el);
+    if (select) return optionsFromSelect(select);
+  }
+  if (elementType === "radio-group" && el instanceof HTMLInputElement && el.name) {
+    const radios = Array.from(
+      el.ownerDocument.querySelectorAll(`input[type="radio"][name="${cssEscape(el.name)}"]`)
+    ).filter((node): node is HTMLInputElement => node instanceof HTMLInputElement);
+    const options = radios.map((radio) => {
+      const label =
+        radio.closest("label")?.textContent ||
+        radio.getAttribute("aria-label") ||
+        radio.value;
+      return { value: radio.value, label: collapse(label) || radio.value };
+    });
+    return options.length ? options : undefined;
+  }
+  return undefined;
 }
 
 function labelFromFor(el: HTMLElement, root: ParentNode): string | undefined {
@@ -130,6 +200,11 @@ function nearbyText(el: HTMLElement): string | undefined {
       if (text) return text.slice(0, 80);
     }
   }
+  const aunt = parent.previousElementSibling;
+  if (aunt && !isFormControl(aunt)) {
+    const text = collapse(aunt.textContent);
+    if (text && text.length < 80) return text;
+  }
   return undefined;
 }
 
@@ -141,6 +216,15 @@ function collapse(value?: string | null): string | undefined {
 function currentValueOf(
   el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
 ): string | undefined {
+  if (el instanceof HTMLInputElement && el.type === "radio" && el.name) {
+    const checked = el.ownerDocument.querySelector(
+      `input[type="radio"][name="${cssEscape(el.name)}"]:checked`
+    );
+    if (checked instanceof HTMLInputElement) {
+      return collapse(checked.closest("label")?.textContent) || checked.value || undefined;
+    }
+    return undefined;
+  }
   const value = el.value?.trim();
   return value || undefined;
 }
@@ -159,6 +243,15 @@ export function toSerializable(field: DetectedFormField): SerializableFormField 
   return rest;
 }
 
+function isDisplayed(el: HTMLElement): boolean {
+  if (el.hidden) return false;
+  if (el.getAttribute("aria-hidden") === "true" && !isCombobox(el)) return false;
+  const style = el.ownerDocument.defaultView?.getComputedStyle(el);
+  if (!style) return true;
+  if (style.display === "none" || style.visibility === "hidden") return false;
+  return true;
+}
+
 export function detectFormFields(
   root: ParentNode = document
 ): DetectedFormField[] {
@@ -167,20 +260,34 @@ export function detectFormFields(
   ).filter(isFormControl);
 
   const fields: DetectedFormField[] = [];
+  const seenRadio = new Set<string>();
   let index = 0;
 
   for (const el of controls) {
     if (shouldSkip(el)) continue;
+    if (!isDisplayed(el) && !isCombobox(el)) continue;
     const elementType = elementTypeOf(el);
     if (!elementType) continue;
 
+    if (elementType === "radio-group" && el instanceof HTMLInputElement) {
+      const key = el.name || el.id;
+      if (key && seenRadio.has(key)) continue;
+      if (key) seenRadio.add(key);
+    }
+
     const label =
-      labelFromFor(el, root) ??
-      wrappingLabel(el) ??
-      labelledBy(el) ??
-      collapse(el.getAttribute("aria-label"));
+      elementType === "radio-group"
+        ? fieldContainerLabel(el) ??
+          labelledBy(el) ??
+          collapse(el.getAttribute("aria-label"))
+        : labelFromFor(el, root) ??
+          wrappingLabel(el) ??
+          labelledBy(el) ??
+          fieldContainerLabel(el) ??
+          collapse(el.getAttribute("aria-label"));
     const nearby = nearbyText(el);
     const helper = helperText(el);
+    const options = optionsFor(el, elementType);
 
     const field: DetectedFormField = {
       id: "",
@@ -198,6 +305,8 @@ export function detectFormFields(
       helperText: helper,
       maxLength: detectMaxLength(el, label, nearby, helper),
       disabled: el.disabled,
+      options,
+      role: el.getAttribute("role") || undefined,
       element: el
     };
 
@@ -210,6 +319,13 @@ export function detectFormFields(
       field.placeholder ?? ""
     ])}`;
     el.dataset.jacFieldId = field.id;
+    if (elementType === "radio-group" && el instanceof HTMLInputElement && el.name) {
+      el.ownerDocument
+        .querySelectorAll(`input[type="radio"][name="${cssEscape(el.name)}"]`)
+        .forEach((node) => {
+          if (node instanceof HTMLElement) node.dataset.jacFieldId = field.id;
+        });
+    }
     fields.push(field);
     index += 1;
   }

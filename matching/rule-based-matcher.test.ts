@@ -32,7 +32,7 @@ function sampleProfile(): UserProfile {
       }
     },
     links: {
-      linkedin: "https://linkedin.com/in/amanchaubey",
+      linkedin: "https://www.linkedin.com/in/amanchaubey",
       github: "https://github.com/amanchaubey",
       portfolio: "https://amanchaubey.dev"
     },
@@ -87,8 +87,8 @@ describe("RuleBasedFieldMatcher", () => {
     { name: "Full Name", overrides: { label: "Full Name" }, path: "personal.fullName", value: "Aman Chaubey", minConfidence: 0.9 },
     { name: "candidate name", overrides: { label: "Candidate Name" }, path: "personal.fullName", value: "Aman Chaubey", minConfidence: 0.9 },
     { name: "legal name", overrides: { label: "Legal Name" }, path: "personal.fullName", value: "Aman Chaubey", minConfidence: 0.9 },
-    { name: "LinkedIn", overrides: { label: "LinkedIn" }, path: "links.linkedin", value: "https://linkedin.com/in/amanchaubey", minConfidence: 0.9 },
-    { name: "linkedin url", overrides: { label: "LinkedIn URL" }, path: "links.linkedin", value: "https://linkedin.com/in/amanchaubey", minConfidence: 0.9 },
+    { name: "LinkedIn", overrides: { label: "LinkedIn" }, path: "links.linkedin", value: "https://www.linkedin.com/in/amanchaubey", minConfidence: 0.9 },
+    { name: "linkedin url", overrides: { label: "LinkedIn URL" }, path: "links.linkedin", value: "https://www.linkedin.com/in/amanchaubey", minConfidence: 0.9 },
     { name: "GitHub", overrides: { label: "GitHub" }, path: "links.github", value: "https://github.com/amanchaubey", minConfidence: 0.9 },
     { name: "github profile", overrides: { label: "GitHub Profile" }, path: "links.github", value: "https://github.com/amanchaubey", minConfidence: 0.9 },
     { name: "Portfolio", overrides: { label: "Portfolio" }, path: "links.portfolio", value: "https://amanchaubey.dev", minConfidence: 0.9 },
@@ -119,7 +119,8 @@ describe("RuleBasedFieldMatcher", () => {
     { name: "Postal Code", overrides: { label: "Postal Code" }, path: "personal.address.postalCode", value: "560001", minConfidence: 0.9 },
     { name: "Postcode", overrides: { label: "Postcode" }, path: "personal.address.postalCode", value: "560001", minConfidence: 0.9 },
     { name: "Country", overrides: { label: "Country" }, path: "personal.address.country", value: "India", minConfidence: 0.9 },
-    { name: "Country of Residence", overrides: { label: "Country of Residence" }, path: "personal.address.country", value: "India", minConfidence: 0.9 }
+    { name: "Country of Residence", overrides: { label: "Country of Residence" }, path: "personal.address.country", value: "India", minConfidence: 0.9 },
+    { name: "Preferred First Name", overrides: { label: "Preferred First Name" }, path: "personal.firstName", value: "Aman", minConfidence: 0.9 }
   ];
 
   it.each(cases)("maps $name", async ({ overrides, path, value, minConfidence }) => {

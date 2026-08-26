@@ -44,11 +44,19 @@ export const leverAdapter = siteAdapter("lever", ["jobs.lever.co", "lever.co"]);
 export const workdayAdapter = siteAdapter("workday", ["myworkdayjobs.com", "workday.com"]);
 export const ashbyAdapter = siteAdapter("ashby", ["ashbyhq.com", "jobs.ashbyhq.com"]);
 
+export const zohoAdapter: JobSiteAdapter = {
+  ...siteAdapter("zoho", ["zohorecruit.com", "recruit.zoho.", "zohorecruit.eu"]),
+  detectFields(_context, doc) {
+    return doc ? detectFormFields(doc).map(toSerializable) : [];
+  }
+};
+
 const ADAPTERS: JobSiteAdapter[] = [
   greenhouseAdapter,
   leverAdapter,
   workdayAdapter,
-  ashbyAdapter
+  ashbyAdapter,
+  zohoAdapter
 ];
 
 export function pickAdapter(context: PageContext): JobSiteAdapter {

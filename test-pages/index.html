@@ -176,6 +176,49 @@
       <p class="state">Submit clicks: <span id="submit-count">0</span></p>
     </section>
 
+    <section id="greenhouse-like">
+      <h2>Apply for this job</h2>
+      <p>* indicates a required field. Use this block to verify the right-hand copilot drawer.</p>
+      <form id="greenhouse-form">
+        <label for="preferred">Preferred First Name</label>
+        <input id="preferred" name="preferred_first_name" />
+        <div class="row">
+          <div>
+            <label for="gh-country-input">Country *</label>
+            <div class="field">
+              <input id="gh-country-input" class="select__input" role="combobox" aria-autocomplete="list" placeholder="Select..." />
+              <select id="gh-country" hidden>
+                <option value="">Select...</option>
+                <option value="IN">India</option>
+                <option value="US">United States</option>
+                <option value="GB">United Kingdom</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label for="gh-phone">Phone *</label>
+            <input id="gh-phone" name="phone" type="tel" />
+          </div>
+        </div>
+        <label for="gh-linkedin">LinkedIn Profile *</label>
+        <input id="gh-linkedin" name="linkedin" />
+        <label for="gh-salary">Desired Salary *</label>
+        <input id="gh-salary" name="desired_salary" />
+        <label for="gh-auth">Are you legally authorized to work in the United States? *</label>
+        <select id="gh-auth" name="authorized" required>
+          <option value="">Select...</option>
+          <option value="1">Yes</option>
+          <option value="0">No</option>
+        </select>
+        <label for="gh-sponsor">Will you now or in the future require sponsorship for employment? *</label>
+        <select id="gh-sponsor" name="sponsorship" required>
+          <option value="">Select...</option>
+          <option value="1">Yes</option>
+          <option value="0">No</option>
+        </select>
+      </form>
+    </section>
+
     <section id="react-like">
       <h2>React-like controlled inputs</h2>
       <p>These fields only update visible state when they receive <code>input</code> events.</p>

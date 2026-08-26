@@ -13,6 +13,7 @@ import type { FieldMatch } from "~types/matching";
 import type { RetrievalResult } from "~types/knowledge";
 import type { UserProfile } from "~types/profile";
 import { AppError } from "~types/errors";
+import { buildCopilotTurnPrompt } from "~prompts/copilot-turn";
 import { buildFieldClassificationPrompt } from "~prompts/field-classification";
 import { buildJobAnalysisPrompt } from "~prompts/job-analysis";
 import { buildAnswerPrompt } from "~prompts/answer-generation";
@@ -32,11 +33,13 @@ import {
 import { ensureKnowledgeForProfile } from "~knowledge/sync";
 import {
   parseClassification,
+  parseCopilotTurn,
   parseGeneratedAnswer,
   parseJobAnalysis,
   parseJobRequirements,
   parseRagAnswer
 } from "./schemas";
+import type { CopilotTurn } from "~types/copilot";
 import { generateValidated } from "./generate";
 import { buildCacheKey } from "./cache-key";
 import { groundGeneratedAnswer, groundJobAnalysis } from "./ground";
@@ -406,4 +409,54 @@ export async function generateAnswerWithAi(input: {
   );
 
   return groundGeneratedAnswer(answer, input.profile, input.question.maxLength ?? 800);
+}
+
+export async function generateCopilotTurn(input: {
+  provider: AIProvider;
+  settings: AiSettings;
+  field: SerializableFormField;
+  job?: JobContext | null;
+  profile: UserProfile;
+  suggested?: string;
+}): Promise<CopilotTurn> {
+  if (!input.settings.model) throw new AppError("AI_NO_MODEL");
+  const profileSummary = [
+    input.profile.personal.fullName,
+    input.profile.personal.email,
+    input.profile.personal.phone,
+    input.profile.personal.location,
+    input.profile.personal.address?.country,
+    input.profile.links.linkedin,
+    input.profile.experience[0]
+      ? `${input.profile.experience[0].title ?? ""} at ${input.profile.experience[0].company ?? ""}`
+      : ""
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const prompt = buildCopilotTurnPrompt({
+    field: input.field,
+    job: input.job,
+    profileSummary,
+    suggested: input.suggested
+  });
+  const parsed = await generateValidated(
+    input.provider,
+    {
+      systemPrompt: prompt.systemPrompt,
+      userPrompt: prompt.userPrompt,
+      model: input.settings.model,
+      temperature: 0.2
+    },
+    parseCopilotTurn
+  );
+  const optionLabels = (input.field.options ?? []).map((option) => option.label);
+  return {
+    question: parsed.question.trim(),
+    why: parsed.why.trim(),
+    suggestion: parsed.suggestion.trim(),
+    suggestionConfidence: parsed.suggestionConfidence,
+    inputKind: parsed.inputKind,
+    choices: parsed.choices.length ? parsed.choices : optionLabels.slice(0, 12),
+    model: input.settings.model
+  };
 }

@@ -122,4 +122,15 @@ https://linkedin.com/in/amanchaubey
     expect(profile.personal.fullName).toBe("Aman Chaubey");
     expect(profile.personal.email).toBe("aman@example.com");
   });
+
+  it("does not glue a phone number onto a LinkedIn URL", () => {
+    const { profile } = extractProfileFromText(
+      `Aman Chaubey
+amanchaubey86@gmail.com | +91 88815 03310linkedin.com/in/amanchaubey
+`
+    );
+    expect(profile.links.linkedin).toBe("https://www.linkedin.com/in/amanchaubey");
+    expect(profile.links.linkedin).not.toMatch(/03310/);
+    expect(profile.personal.phone?.replace(/\D/g, "")).toContain("8881503310");
+  });
 });

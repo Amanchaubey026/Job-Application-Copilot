@@ -95,6 +95,33 @@ describe("matchFieldsPhase2", () => {
     expect(results[0]?.match?.source).not.toBe("ai");
   });
 
+  it("does not send country comboboxes to AI", async () => {
+    const ai = provider({ intent: "skills", profileSources: ["skills"], confidence: 0.99 });
+    const results = await matchFieldsPhase2({
+      fields: [
+        {
+          id: "country",
+          elementType: "combobox",
+          label: "Country",
+          options: [{ value: "IN", label: "India" }]
+        }
+      ],
+      profile: profile(),
+      provider: ai,
+      settings: {
+        id: "default",
+        ollamaUrl: "http://localhost:11434",
+        model: "test",
+        embeddingModel: "",
+        temperature: 0.2,
+        timeoutMs: 1000
+      },
+      aiEnabled: true
+    });
+    expect(vi.mocked(ai.generateStructured)).not.toHaveBeenCalled();
+    expect(results[0]?.match?.profilePath).toBe("personal.address.country");
+  });
+
   it("leaves unknown fields unmatched when AI is disabled", async () => {
     const results = await matchFieldsPhase2({
       fields: [field("color", "Favorite Color")],

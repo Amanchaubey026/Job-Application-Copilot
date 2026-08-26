@@ -1,4 +1,5 @@
 import type { ApplicationCompleteness, ApplicationStep } from "./application";
+import type { CopilotPlan, CopilotTurn } from "./copilot";
 import type { FillFieldRequest, FillFieldResult, PageContext, SerializableFormField } from "./form";
 import type { ApplicationQuestion, JobContext } from "./job";
 import type { UserProfile } from "./profile";
@@ -9,7 +10,21 @@ export type ExtensionMessage =
   | { type: "FILL_FIELDS"; fields: FillFieldRequest[] }
   | { type: "GET_PAGE_CONTEXT" }
   | { type: "GET_JOB_CONTEXT" }
-  | { type: "PING" };
+  | { type: "PING" }
+  | { type: "OPEN_COPILOT" }
+  | { type: "CLOSE_COPILOT" }
+  | {
+      type: "COPILOT_PLAN";
+      fields: SerializableFormField[];
+      questions: ApplicationQuestion[];
+      job: JobContext | null;
+    }
+  | {
+      type: "COPILOT_QUESTION";
+      field: SerializableFormField;
+      job: JobContext | null;
+      suggested?: string;
+    };
 
 export type GetProfileResponse =
   | { ok: true; profile: UserProfile | null }
@@ -42,13 +57,33 @@ export type GetJobContextResponse =
 
 export type PingResponse = { ok: true };
 
+export type OpenCopilotResponse = { ok: true } | { ok: false; error: string };
+
+export type CopilotPlanResponse =
+  | {
+      ok: true;
+      plan: CopilotPlan;
+      ollamaReady: boolean;
+      model: string;
+      ollamaStatus: string;
+      profileName: string;
+    }
+  | { ok: false; error: string };
+
+export type CopilotQuestionResponse =
+  | { ok: true; ollamaReady: boolean; model: string; turn: CopilotTurn }
+  | { ok: false; error: string };
+
 export type ExtensionResponse =
   | GetProfileResponse
   | ScanFormResponse
   | FillFieldsResponse
   | GetPageContextResponse
   | GetJobContextResponse
-  | PingResponse;
+  | PingResponse
+  | OpenCopilotResponse
+  | CopilotPlanResponse
+  | CopilotQuestionResponse;
 
 const MESSAGE_TYPES = new Set([
   "GET_PROFILE",
@@ -56,7 +91,11 @@ const MESSAGE_TYPES = new Set([
   "FILL_FIELDS",
   "GET_PAGE_CONTEXT",
   "GET_JOB_CONTEXT",
-  "PING"
+  "PING",
+  "OPEN_COPILOT",
+  "CLOSE_COPILOT",
+  "COPILOT_PLAN",
+  "COPILOT_QUESTION"
 ]);
 
 export function isExtensionMessage(value: unknown): value is ExtensionMessage {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { genericAdapter } from "./generic";
-import { greenhouseAdapter, pickAdapter } from "./sites";
+import { greenhouseAdapter, pickAdapter, zohoAdapter } from "./sites";
 
 describe("site adapters", () => {
   it("matches greenhouse hosts", () => {
@@ -9,6 +9,18 @@ describe("site adapters", () => {
         title: "Apply",
         url: "https://boards.greenhouse.io/example/jobs/1",
         hostname: "boards.greenhouse.io",
+        looksLikeJobApplication: true,
+        signals: ["application"]
+      })
+    ).toBe(true);
+  });
+
+  it("matches Zoho Recruit hosts", () => {
+    expect(
+      zohoAdapter.matches({
+        title: "Frontend Developer",
+        url: "https://techcarrot.zohorecruit.com/jobs/Careers/1",
+        hostname: "techcarrot.zohorecruit.com",
         looksLikeJobApplication: true,
         signals: ["application"]
       })

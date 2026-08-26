@@ -29,4 +29,39 @@ describe("form detector", () => {
     expect(fields).toHaveLength(1);
     expect(fields[0]?.name).toBe("first_name");
   });
+
+  it("groups radio questions and reads the wrapping label", () => {
+    document.body.innerHTML = `
+      <div class="field">
+        <label>Are you legally authorized to work in the United States?</label>
+        <label><input type="radio" name="auth" value="1"> Yes</label>
+        <label><input type="radio" name="auth" value="0"> No</label>
+      </div>
+    `;
+    const fields = detectFormFields(document).map(toSerializable);
+    expect(fields).toHaveLength(1);
+    expect(fields[0]?.elementType).toBe("radio-group");
+    expect(fields[0]?.options?.map((option) => option.label)).toEqual(expect.arrayContaining(["Yes", "No"]));
+    expect(fields[0]?.label).toMatch(/authorized to work/i);
+  });
+
+  it("treats searchable dropdown inputs as comboboxes", () => {
+    document.body.innerHTML = `
+      <div class="field">
+        <label>Country</label>
+        <div class="select__control">
+          <input class="select__input" role="combobox" aria-autocomplete="list" />
+        </div>
+        <select hidden>
+          <option value="IN">India</option>
+          <option value="US">United States</option>
+        </select>
+      </div>
+    `;
+    const fields = detectFormFields(document).map(toSerializable);
+    const country = fields.find((field) => field.elementType === "combobox");
+    expect(country).toBeTruthy();
+    expect(country?.label).toMatch(/country/i);
+    expect(country?.options?.some((option) => option.label === "India")).toBe(true);
+  });
 });

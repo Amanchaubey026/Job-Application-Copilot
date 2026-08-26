@@ -1,5 +1,6 @@
 export * from "./ai";
 export * from "./application";
+export * from "./copilot";
 export * from "./errors";
 export * from "./form";
 export * from "./job";

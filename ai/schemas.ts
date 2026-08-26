@@ -85,3 +85,16 @@ export const resumeTailoringSchema = z.object({
 export function parseResumeTailoring(value: unknown) {
   return resumeTailoringSchema.parse(value);
 }
+
+export const copilotTurnSchema = z.object({
+  question: z.string().min(1).max(280),
+  why: z.string().max(280).optional().default(""),
+  suggestion: z.string().max(2000).optional().default(""),
+  suggestionConfidence: confidence.optional().default(0),
+  inputKind: z.enum(["text", "choice", "yesno", "longtext"]).optional().default("text"),
+  choices: z.array(z.string().max(120)).max(40).optional().default([])
+});
+
+export function parseCopilotTurn(value: unknown) {
+  return copilotTurnSchema.parse(value);
+}

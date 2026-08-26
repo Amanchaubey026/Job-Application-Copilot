@@ -21,11 +21,35 @@ function shouldSkipAi(
   questionIds: Set<string>
 ): boolean {
   if (questionIds.has(item.field.id)) return true;
-  if (item.field.elementType === "select") return true;
+  if (
+    item.field.elementType === "select" ||
+    item.field.elementType === "combobox" ||
+    item.field.elementType === "radio-group"
+  ) {
+    return true;
+  }
+  if ((item.field.options?.length ?? 0) > 0) return true;
   const type = (item.field.inputType ?? "").toLowerCase();
   if (type === "email" || type === "tel") return true;
   if (item.match && IDENTITY_PROFILE_PATHS.has(item.match.profilePath)) return true;
   if (item.match && item.match.confidence >= HIGH_CONFIDENCE_THRESHOLD) return true;
+  const blob = [
+    item.field.label,
+    item.field.name,
+    item.field.ariaLabel,
+    item.field.placeholder,
+    item.field.nearbyText
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  if (
+    /\b(country|salary|compensation|sponsorship|visa|authorized|gender|race|ethnicity|veteran|disability)\b/.test(
+      blob
+    )
+  ) {
+    return true;
+  }
   return false;
 }
 
